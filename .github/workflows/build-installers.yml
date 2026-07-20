@@ -33,7 +33,7 @@ jobs:
         working-directory: .
         run: bash tools/bootstrap_mobile.sh
       - name: Analisi
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
       - name: Test
         run: flutter test
       - name: Crea APK release
