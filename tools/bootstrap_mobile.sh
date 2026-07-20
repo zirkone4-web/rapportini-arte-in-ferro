@@ -13,5 +13,9 @@ if [[ ! -d android || ! -d ios ]]; then
     .
 fi
 
+# flutter create aggiunge un test dimostrativo riferito a MyApp. Il progetto
+# usa ArteInFerroApp e mantiene i propri test, quindi rimuoviamo solo il demo.
+rm -f test/widget_test.dart
+
 python3 "$ROOT_DIR/tools/configure_mobile_platforms.py" "$MOBILE_DIR"
 flutter pub get
