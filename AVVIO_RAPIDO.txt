@@ -1,0 +1,40 @@
+RAPPORTINI ARTE IN FERRO - AVVIO RAPIDO
+========================================
+
+NEL PACCHETTO TROVI
+- app Flutter per Android e iPhone;
+- programma amministrativo per Windows 10/11;
+- database e sicurezza Supabase;
+- procedura automatica per produrre APK e programma Windows.
+
+PRIMA CONFIGURAZIONE
+1. Crea un progetto su https://supabase.com.
+2. Nel SQL Editor esegui, in ordine:
+   - supabase/supabase_rapportini_schema.sql
+   - supabase/supabase_seed_demo.sql
+3. In Authentication > Users crea:
+   - un account amministratore;
+   - un account operatore per il telefono.
+4. Nel SQL Editor promuovi l'amministratore:
+
+   update public.utenti
+   set ruolo = 'admin'
+   where email = 'LA-TUA-EMAIL';
+
+CONFIGURAZIONE CLOUD
+Il progetto consegnato contiene già Project URL e Publishable key del progetto
+"Rapportini Arte in Ferro" creato il 20/07/2026.
+
+La Publishable key è quella prevista per app e client. NON usare e NON inviare
+mai la service_role key.
+
+CREAZIONE AUTOMATICA APK E WINDOWS
+1. Crea un repository GitHub privato vuoto.
+2. Copia il contenuto della cartella rapportini_app nel repository.
+3. In Settings > Secrets and variables > Actions crea:
+   - SUPABASE_URL
+   - SUPABASE_PUBLISHABLE_KEY
+4. Apri Actions > Build APK e Windows > Run workflow.
+5. Scarica i due artifact prodotti.
+
+Per istruzioni tecniche e build manuale apri README.md.

@@ -1,0 +1,659 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:arte_in_ferro_rapportini/core/errors/app_exception.dart';
+import 'package:arte_in_ferro_rapportini/core/gps/location_service.dart';
+import 'package:arte_in_ferro_rapportini/features/auth/domain/entities/app_user.dart';
+import 'package:arte_in_ferro_rapportini/features/rapportini/domain/entities/cliente.dart';
+import 'package:arte_in_ferro_rapportini/features/rapportini/domain/entities/rapportino.dart';
+import 'package:arte_in_ferro_rapportini/features/rapportini/presentation/cubit/rapportini_cubit.dart';
+import 'package:arte_in_ferro_rapportini/features/rapportini/presentation/cubit/rapportini_state.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import 'package:signature/signature.dart';
+import 'package:uuid/uuid.dart';
+
+class RapportinoFormPage extends StatefulWidget {
+  const RapportinoFormPage({
+    required this.user,
+    this.rapportino,
+    super.key,
+  });
+
+  final AppUser user;
+  final Rapportino? rapportino;
+
+  @override
+  State<RapportinoFormPage> createState() => _RapportinoFormPageState();
+}
+
+class _RapportinoFormPageState extends State<RapportinoFormPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _uuid = const Uuid();
+
+  late final String _id;
+  late final TextEditingController _luogoController;
+  late final TextEditingController _riferimentoController;
+  late final TextEditingController _descrizioneController;
+  late DateTime _inizio;
+  DateTime? _fine;
+  String? _clienteId;
+  late TipoIntervento _tipologia;
+  List<RapportinoFoto> _foto = [];
+  String? _firmaPath;
+  bool _signatureChanged = false;
+  bool _busy = false;
+  String? _busyMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    final report = widget.rapportino;
+    _id = report?.id ?? _uuid.v4();
+    _luogoController = TextEditingController(text: report?.luogo);
+    _riferimentoController = TextEditingController(
+      text: report?.rifAppuntamento,
+    );
+    _descrizioneController = TextEditingController(text: report?.descrizione);
+    _inizio = report?.dataOraInizio.toLocal() ?? DateTime.now();
+    _fine = report?.dataOraFine?.toLocal() ??
+        DateTime.now().add(const Duration(hours: 1));
+    _clienteId = report?.clienteId;
+    _tipologia = report?.tipologia ?? TipoIntervento.montaggioPosa;
+    _firmaPath = report?.firmaLocalePath;
+
+    if (report != null) {
+      context.read<RapportiniCubit>().loadFoto(report.id).then((value) {
+        if (mounted) setState(() => _foto = value);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _luogoController.dispose();
+    _riferimentoController.dispose();
+    _descrizioneController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clienti = context.select(
+      (RapportiniCubit cubit) => cubit.state.clienti,
+    );
+    if (_clienteId == null && clienti.isNotEmpty) {
+      _clienteId = clienti.first.id;
+    }
+
+    return PopScope(
+      canPop: !_busy,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            widget.rapportino == null ? 'Nuovo rapportino' : 'Modifica rapportino',
+          ),
+        ),
+        body: SafeArea(
+          child: Stack(
+            children: [
+              Form(
+                key: _formKey,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                  children: [
+                    _SectionTitle(
+                      number: 1,
+                      title: 'Cliente e intervento',
+                    ),
+                    DropdownButtonFormField<String>(
+                      initialValue: _clienteId,
+                      decoration: const InputDecoration(
+                        labelText: 'Cliente *',
+                        prefixIcon: Icon(Icons.business_outlined),
+                      ),
+                      items: clienti
+                          .map(
+                            (cliente) => DropdownMenuItem(
+                              value: cliente.id,
+                              child: Text(
+                                cliente.ragioneSociale,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: _busy
+                          ? null
+                          : (value) => setState(() => _clienteId = value),
+                      validator: (value) =>
+                          value == null ? 'Seleziona il cliente' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<TipoIntervento>(
+                      initialValue: _tipologia,
+                      decoration: const InputDecoration(
+                        labelText: 'Tipo intervento *',
+                        prefixIcon: Icon(Icons.handyman_outlined),
+                      ),
+                      items: TipoIntervento.values
+                          .map(
+                            (type) => DropdownMenuItem(
+                              value: type,
+                              child: Text(type.label),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: _busy
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                setState(() => _tipologia = value);
+                              }
+                            },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _luogoController,
+                      enabled: !_busy,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Luogo / cantiere *',
+                        prefixIcon: Icon(Icons.location_on_outlined),
+                      ),
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _riferimentoController,
+                      enabled: !_busy,
+                      decoration: const InputDecoration(
+                        labelText: 'Riferimento appuntamento',
+                        prefixIcon: Icon(Icons.event_note_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const _SectionTitle(number: 2, title: 'Data e orari'),
+                    _DateTimeField(
+                      label: 'Inizio *',
+                      value: _inizio,
+                      enabled: !_busy,
+                      onTap: () => _pickDateTime(isStart: true),
+                    ),
+                    const SizedBox(height: 12),
+                    _DateTimeField(
+                      label: 'Fine *',
+                      value: _fine,
+                      enabled: !_busy,
+                      onTap: () => _pickDateTime(isStart: false),
+                    ),
+                    if (_fine != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Totale: ${_hoursLabel()}',
+                        textAlign: TextAlign.end,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    const _SectionTitle(number: 3, title: 'Lavoro svolto'),
+                    TextFormField(
+                      controller: _descrizioneController,
+                      enabled: !_busy,
+                      minLines: 4,
+                      maxLines: 8,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'Descrizione attività *',
+                        alignLabelWithHint: true,
+                      ),
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 24),
+                    const _SectionTitle(number: 4, title: 'Foto cantiere'),
+                    _PhotoStrip(foto: _foto),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _capturePhoto,
+                      icon: const Icon(Icons.camera_alt_outlined),
+                      label: const Text('SCATTA FOTO'),
+                    ),
+                    const SizedBox(height: 24),
+                    const _SectionTitle(number: 5, title: 'Firma cliente'),
+                    _SignaturePreview(
+                      localPath: _firmaPath,
+                      hasRemoteSignature:
+                          widget.rapportino?.firmaRemotePath != null,
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _captureSignature,
+                      icon: const Icon(Icons.draw_outlined),
+                      label: Text(
+                        _firmaPath == null ? 'RACCOGLI FIRMA' : 'RIFAI FIRMA',
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    FilledButton.icon(
+                      onPressed: _busy
+                          ? null
+                          : () => _save(StatoRapportino.inviato),
+                      icon: const Icon(Icons.send_outlined),
+                      label: const Text('SALVA E INVIA'),
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton(
+                      onPressed: _busy
+                          ? null
+                          : () => _save(StatoRapportino.bozza),
+                      child: const Text('SALVA COME BOZZA'),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'La posizione GPS viene rilevata al salvataggio. Se non '
+                      'c’è rete, il rapportino resta sul telefono e sarà inviato '
+                      'automaticamente al prossimo tentativo.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              if (_busy)
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: Colors.black26,
+                    child: Center(
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const CircularProgressIndicator(),
+                              const SizedBox(height: 14),
+                              Text(_busyMessage ?? 'Salvataggio…'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String? _required(String? value) {
+    return value == null || value.trim().isEmpty ? 'Campo obbligatorio' : null;
+  }
+
+  Future<void> _capturePhoto() async {
+    _setBusy(true, 'Ottimizzazione fotografia…');
+    try {
+      final path = await context.read<RapportiniCubit>().capturePhoto(_id);
+      if (path != null && mounted) {
+        setState(() {
+          _foto = [
+            ..._foto,
+            RapportinoFoto(
+              id: _uuid.v4(),
+              rapportinoId: _id,
+              localPath: path,
+              createdAt: DateTime.now(),
+            ),
+          ];
+        });
+      }
+    } on Object catch (error) {
+      _showError(error);
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  Future<void> _captureSignature() async {
+    final controller = SignatureController(
+      penStrokeWidth: 3,
+      penColor: Colors.black,
+      exportBackgroundColor: Colors.white,
+    );
+    final bytes = await showDialog<Uint8List>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Firma del cliente'),
+        content: SizedBox(
+          width: 520,
+          height: 260,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.blueGrey),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Signature(
+              controller: controller,
+              backgroundColor: Colors.white,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: controller.clear,
+            child: const Text('CANCELLA FIRMA'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('ANNULLA'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (controller.isEmpty) return;
+              final png = await controller.toPngBytes();
+              if (png != null && dialogContext.mounted) {
+                Navigator.of(dialogContext).pop(png);
+              }
+            },
+            child: const Text('CONFERMA'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (bytes == null || !mounted) return;
+    _setBusy(true, 'Salvataggio firma…');
+    try {
+      final path = await context.read<RapportiniCubit>().saveSignature(
+            _id,
+            bytes,
+          );
+      if (mounted) {
+        setState(() {
+          _firmaPath = path;
+          _signatureChanged = true;
+        });
+      }
+    } on Object catch (error) {
+      _showError(error);
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  Future<void> _save(StatoRapportino state) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_fine == null || !_fine!.isAfter(_inizio)) {
+      _showError(const AppException('L’orario di fine deve essere dopo l’inizio.'));
+      return;
+    }
+    final hasSignature = _firmaPath != null ||
+        (!_signatureChanged && widget.rapportino?.firmaRemotePath != null);
+    if (state == StatoRapportino.inviato && !hasSignature) {
+      _showError(const AppException('Raccogli la firma prima dell’invio.'));
+      return;
+    }
+
+    _setBusy(true, 'Rilevamento posizione GPS…');
+    try {
+      final location = await context.read<LocationService>().capture();
+      if (!mounted) return;
+      _setBusy(true, 'Salvataggio locale…');
+      final existing = widget.rapportino;
+      final cliente = _findCliente(
+        context.read<RapportiniCubit>().state,
+        _clienteId!,
+      );
+      final now = DateTime.now();
+      final report = Rapportino(
+        id: _id,
+        dipendenteId: widget.user.id,
+        clienteId: cliente.id,
+        clienteNome: cliente.ragioneSociale,
+        luogo: _luogoController.text.trim(),
+        rifAppuntamento: _emptyToNull(_riferimentoController.text),
+        tipologia: _tipologia,
+        dataOraInizio: _inizio,
+        dataOraFine: _fine,
+        descrizione: _descrizioneController.text.trim(),
+        firmaLocalePath: _firmaPath,
+        firmaRemotePath:
+            _signatureChanged ? null : existing?.firmaRemotePath,
+        gpsLatitudine: location.latitude,
+        gpsLongitudine: location.longitude,
+        gpsPrecisioneMetri: location.accuracy,
+        gpsRilevatoAt: location.capturedAt,
+        stato: state,
+        notaAmministratore: existing?.notaAmministratore,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+        versioneRemota: existing?.versioneRemota ?? 0,
+      );
+      await context.read<RapportiniCubit>().save(report, _foto);
+      if (mounted) Navigator.of(context).pop(true);
+    } on Object catch (error) {
+      _showError(error);
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  Cliente _findCliente(RapportiniState state, String id) {
+    return state.clienti.firstWhere((item) => item.id == id);
+  }
+
+  Future<void> _pickDateTime({required bool isStart}) async {
+    final current = isStart ? _inizio : _fine ?? _inizio;
+    final date = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(current),
+    );
+    if (time == null) return;
+    final value = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    setState(() {
+      if (isStart) {
+        _inizio = value;
+        if (_fine == null || !_fine!.isAfter(value)) {
+          _fine = value.add(const Duration(hours: 1));
+        }
+      } else {
+        _fine = value;
+      }
+    });
+  }
+
+  String _hoursLabel() {
+    final minutes = _fine!.difference(_inizio).inMinutes;
+    if (minutes <= 0) return 'orario non valido';
+    return '${minutes ~/ 60} h ${minutes % 60} min';
+  }
+
+  void _setBusy(bool value, [String? message]) {
+    if (!mounted) return;
+    setState(() {
+      _busy = value;
+      _busyMessage = value ? message : null;
+    });
+  }
+
+  void _showError(Object error) {
+    if (!mounted) return;
+    final raw = error is AppException ? error.message : error.toString();
+    final message = raw.replaceFirst('Exception: ', '');
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String? _emptyToNull(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.number, required this.title});
+
+  final int number;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 15,
+              child: Text('$number', style: const TextStyle(fontSize: 12)),
+            ),
+            const SizedBox(width: 9),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _DateTimeField extends StatelessWidget {
+  const _DateTimeField({
+    required this.label,
+    required this.value,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String label;
+  final DateTime? value;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(14),
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: label,
+            prefixIcon: const Icon(Icons.schedule),
+            suffixIcon: const Icon(Icons.edit_calendar_outlined),
+            enabled: enabled,
+          ),
+          child: Text(
+            value == null
+                ? 'Non impostato'
+                : DateFormat('dd/MM/yyyy HH:mm').format(value!),
+          ),
+        ),
+      );
+}
+
+class _PhotoStrip extends StatelessWidget {
+  const _PhotoStrip({required this.foto});
+
+  final List<RapportinoFoto> foto;
+
+  @override
+  Widget build(BuildContext context) {
+    if (foto.isEmpty) {
+      return const DecoratedBox(
+        decoration: BoxDecoration(color: Colors.white),
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.photo_camera_back_outlined),
+              SizedBox(width: 8),
+              Text('Nessuna fotografia'),
+            ],
+          ),
+        ),
+      );
+    }
+    return SizedBox(
+      height: 112,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: foto.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final file = File(foto[index].localPath);
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox.square(
+              dimension: 112,
+              child: FutureBuilder<bool>(
+                future: file.exists(),
+                builder: (context, snapshot) {
+                  if (snapshot.data == true) {
+                    return Image.file(file, fit: BoxFit.cover);
+                  }
+                  return const ColoredBox(
+                    color: Colors.white,
+                    child: Icon(Icons.cloud_done_outlined),
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SignaturePreview extends StatelessWidget {
+  const _SignaturePreview({
+    required this.localPath,
+    required this.hasRemoteSignature,
+  });
+
+  final String? localPath;
+  final bool hasRemoteSignature;
+
+  @override
+  Widget build(BuildContext context) {
+    final path = localPath;
+    return Container(
+      height: 120,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.blueGrey.shade200),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: path != null
+          ? Image.file(
+              File(path),
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Text('Firma non leggibile'),
+            )
+          : hasRemoteSignature
+              ? const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.cloud_done_outlined),
+                    SizedBox(width: 8),
+                    Text('Firma già archiviata'),
+                  ],
+                )
+              : const Text('Firma non acquisita'),
+    );
+  }
+}
