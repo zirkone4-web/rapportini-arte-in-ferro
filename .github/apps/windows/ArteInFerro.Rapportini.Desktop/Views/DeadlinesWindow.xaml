@@ -1,0 +1,26 @@
+<Window x:Class="ArteInFerro.Rapportini.Desktop.Views.DeadlinesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Scadenziario · Arte In Ferro" Width="1200" Height="740"
+        WindowStartupLocation="CenterOwner" Background="#F1F5F9">
+    <DockPanel Margin="18">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+            <TextBlock Text="Scadenziario aziendale" FontSize="24" FontWeight="Bold"
+                       VerticalAlignment="Center" Margin="0,0,24,0" />
+            <Button Content="Aggiorna" Command="{Binding LoadCommand}" />
+        </StackPanel>
+        <DataGrid ItemsSource="{Binding Deadlines}" AutoGenerateColumns="False"
+                  IsReadOnly="True" CanUserSortColumns="True" RowHeight="38"
+                  Background="White" GridLinesVisibility="Horizontal">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Stato" Binding="{Binding Status}" Width="125" />
+                <DataGridTextColumn Header="Scadenza" Binding="{Binding ExpiryDate, StringFormat=dd/MM/yyyy}" Width="130" />
+                <DataGridTextColumn Header="Giorni" Binding="{Binding RemainingDays}" Width="85" />
+                <DataGridTextColumn Header="Ambito" Binding="{Binding Scope}" Width="110" />
+                <DataGridTextColumn Header="Dipendente / mezzo / azienda" Binding="{Binding Subject}" Width="240" />
+                <DataGridTextColumn Header="Categoria" Binding="{Binding Category}" Width="160" />
+                <DataGridTextColumn Header="Documento / attività" Binding="{Binding Title}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</Window>
