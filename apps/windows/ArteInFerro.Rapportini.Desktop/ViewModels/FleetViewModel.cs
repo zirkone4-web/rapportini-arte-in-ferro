@@ -74,12 +74,15 @@ public partial class FleetViewModel : ObservableObject
             return;
         }
         int? km = null;
-        if (!string.IsNullOrWhiteSpace(CurrentKm) && !int.TryParse(CurrentKm, out var parsed))
+        if (!string.IsNullOrWhiteSpace(CurrentKm))
         {
-            Message = "Chilometri non validi.";
-            return;
+            if (!int.TryParse(CurrentKm, out var parsed))
+            {
+                Message = "Chilometri non validi.";
+                return;
+            }
+            km = parsed;
         }
-        else if (!string.IsNullOrWhiteSpace(CurrentKm)) km = parsed;
         IsBusy = true;
         try
         {
