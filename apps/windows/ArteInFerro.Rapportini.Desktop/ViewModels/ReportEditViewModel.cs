@@ -104,8 +104,8 @@ public partial class ReportEditViewModel : ObservableObject
         if (!DateTime.TryParse(EndText, Italian, DateTimeStyles.AssumeLocal, out end))
             return "Data/ora fine non valida. Usa gg/mm/aaaa hh:mm.";
         if (end <= start) return "La fine deve essere successiva all’inizio.";
-        if (SelectedStatus.Id == "respinto" && string.IsNullOrWhiteSpace(AdminNote))
-            return "Inserisci il motivo del rifiuto nella nota ufficio.";
+        if (string.IsNullOrWhiteSpace(AdminNote) || AdminNote.Trim().Length < 3)
+            return "Inserisci la motivazione della modifica nella nota ufficio.";
         return null;
     }
 }

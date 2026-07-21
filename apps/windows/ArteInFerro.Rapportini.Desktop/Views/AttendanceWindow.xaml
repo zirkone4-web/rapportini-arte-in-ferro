@@ -1,27 +1,91 @@
 <Window x:Class="ArteInFerro.Rapportini.Desktop.Views.AttendanceWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Presenze e straordinari · Arte In Ferro" Width="1100" Height="720"
+        Title="Presenze, orari e posizioni · Arte In Ferro" Width="1420" Height="850"
         WindowStartupLocation="CenterOwner" Background="#F1F5F9">
-    <DockPanel Margin="18">
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
-            <TextBlock Text="Presenze e straordinari" FontSize="24" FontWeight="Bold"
-                       VerticalAlignment="Center" Margin="0,0,24,0" />
-            <Button Content="Aggiorna" Command="{Binding LoadCommand}" />
-            <Button Content="Esporta Excel" Command="{Binding ExportAttendanceCommand}"
-                    Background="#DCFCE7" FontWeight="SemiBold" />
-        </StackPanel>
-        <DataGrid ItemsSource="{Binding Attendance}" AutoGenerateColumns="False"
-                  IsReadOnly="True" CanUserSortColumns="True" RowHeight="38"
-                  Background="White" GridLinesVisibility="Horizontal">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Data" Binding="{Binding Day, StringFormat=dd/MM/yyyy}" Width="130" />
-                <DataGridTextColumn Header="Dipendente" Binding="{Binding EmployeeName}" Width="*" />
-                <DataGridTextColumn Header="Entrata" Binding="{Binding FirstEntry.LocalDateTime, StringFormat=HH:mm}" Width="130" />
-                <DataGridTextColumn Header="Uscita" Binding="{Binding LastExit.LocalDateTime, StringFormat=HH:mm}" Width="130" />
-                <DataGridTextColumn Header="Ore lavorate" Binding="{Binding TotalHours, StringFormat=N2}" Width="140" />
-                <DataGridTextColumn Header="Straordinario" Binding="{Binding OvertimeHours, StringFormat=N2}" Width="140" />
-            </DataGrid.Columns>
-        </DataGrid>
-    </DockPanel>
+    <Grid Margin="18">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <DockPanel Margin="0,0,0,12">
+            <TextBlock Text="Presenze, orari e posizioni" FontSize="25" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Button Content="AGGIORNA" Command="{Binding LoadCommand}" DockPanel.Dock="Right"/>
+        </DockPanel>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="390"/></Grid.ColumnDefinitions>
+            <TabControl>
+                <TabItem Header="RIEPILOGO E AUTORIZZAZIONE ORE">
+                    <DataGrid ItemsSource="{Binding Days}" SelectedItem="{Binding SelectedDay}"
+                              AutoGenerateColumns="False" IsReadOnly="True" CanUserSortColumns="True"
+                              Background="White" RowHeight="38">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Data" Binding="{Binding Day, StringFormat=dd/MM/yyyy}" Width="105"/>
+                            <DataGridTextColumn Header="Dipendente" Binding="{Binding EmployeeName}" Width="*"/>
+                            <DataGridTextColumn Header="Entrata" Binding="{Binding FirstEntry.LocalDateTime, StringFormat=HH:mm}" Width="85"/>
+                            <DataGridTextColumn Header="Uscita" Binding="{Binding LastExit.LocalDateTime, StringFormat=HH:mm}" Width="85"/>
+                            <DataGridTextColumn Header="Ore" Binding="{Binding TotalHours, StringFormat=N2}" Width="70"/>
+                            <DataGridTextColumn Header="Straord." Binding="{Binding OvertimeHours, StringFormat=N2}" Width="80"/>
+                            <DataGridTextColumn Header="Autorizzate" Binding="{Binding AuthorizedHours, StringFormat=N2}" Width="95"/>
+                            <DataGridTextColumn Header="Stato ore" Binding="{Binding HoursStatusLabel}" Width="120"/>
+                            <DataGridCheckBoxColumn Header="Trasferta da verificare" Binding="{Binding HasPendingTransfer}" Width="145"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+                <TabItem Header="SINGOLE TIMBRATURE E MAPPA">
+                    <DataGrid ItemsSource="{Binding Events}" SelectedItem="{Binding SelectedEvent}"
+                              AutoGenerateColumns="False" IsReadOnly="True" CanUserSortColumns="True"
+                              Background="White" RowHeight="38">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Data e ora" Binding="{Binding RegisteredAt.LocalDateTime, StringFormat=dd/MM/yyyy HH:mm}" Width="145"/>
+                            <DataGridTextColumn Header="Dipendente" Binding="{Binding EmployeeName}" Width="*"/>
+                            <DataGridTextColumn Header="Tipo" Binding="{Binding TypeLabel}" Width="80"/>
+                            <DataGridTextColumn Header="Modalità" Binding="{Binding ModeLabel}" Width="90"/>
+                            <DataGridTextColumn Header="Sede / cantiere" Binding="{Binding LocationLabel}" Width="190"/>
+                            <DataGridTextColumn Header="Verifica" Binding="{Binding VerificationLabel}" Width="110"/>
+                            <DataGridTextColumn Header="Distanza m" Binding="{Binding DistanceMeters, StringFormat=N0}" Width="90"/>
+                            <DataGridCheckBoxColumn Header="Forzata" Binding="{Binding ForcedByAdmin}" Width="75"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+            </TabControl>
+            <Border Grid.Column="2" Background="White" Padding="18" CornerRadius="12">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Correzioni amministrative" FontSize="21" FontWeight="Bold"/>
+                        <TextBlock Text="Timbratura selezionata" FontWeight="SemiBold" Margin="0,16,0,2"/>
+                        <TextBlock Text="{Binding SelectedEvent.EmployeeName}" FontSize="16"/>
+                        <TextBlock Text="Data e ora (gg/mm/aaaa hh:mm)" Margin="0,10,0,0"/>
+                        <TextBox Text="{Binding EventDateTimeText, UpdateSourceTrigger=PropertyChanged}"/>
+                        <WrapPanel>
+                            <Button Content="SALVA ORARIO" Command="{Binding SaveEventTimeCommand}" Background="#DBEAFE"/>
+                            <Button Content="APRI MAPPA" Command="{Binding OpenMapCommand}"/>
+                        </WrapPanel>
+                        <WrapPanel>
+                            <Button Content="AUTORIZZA TRASFERTA" Command="{Binding ApproveTransferCommand}" Background="#DCFCE7"/>
+                            <Button Content="RIFIUTA" Command="{Binding RejectTransferCommand}" Background="#FEE2E2"/>
+                        </WrapPanel>
+                        <Separator Margin="0,16"/>
+                        <TextBlock Text="Autorizzazione ore giornata" FontWeight="Bold"/>
+                        <ComboBox ItemsSource="{Binding HoursStatuses}" SelectedItem="{Binding SelectedHoursStatus}" DisplayMemberPath="Label" Margin="0,6,0,8"/>
+                        <TextBlock Text="Ore autorizzate"/>
+                        <TextBox Text="{Binding AuthorizedHoursText, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Button Content="SALVA AUTORIZZAZIONE ORE" Command="{Binding AuthorizeHoursCommand}" Background="#DCFCE7"/>
+                        <Separator Margin="0,16"/>
+                        <TextBlock Text="Inserimento forzato" FontWeight="Bold"/>
+                        <TextBlock Text="Dipendente" Margin="0,8,0,0"/>
+                        <ComboBox ItemsSource="{Binding Employees}" SelectedItem="{Binding SelectedEmployee}" DisplayMemberPath="Label"/>
+                        <TextBlock Text="Data e ora" Margin="0,8,0,0"/>
+                        <TextBox Text="{Binding ForceDateTimeText, UpdateSourceTrigger=PropertyChanged}"/>
+                        <WrapPanel>
+                            <Button Content="FORZA ENTRATA" Command="{Binding ForceEntryCommand}"/>
+                            <Button Content="FORZA USCITA" Command="{Binding ForceExitCommand}" Background="#FEF3C7"/>
+                        </WrapPanel>
+                        <TextBlock Text="Motivazione obbligatoria" FontWeight="SemiBold" Margin="0,14,0,0"/>
+                        <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="70" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+        <Border Grid.Row="2" Background="#E2E8F0" Padding="12" Margin="0,12,0,0">
+            <TextBlock Text="{Binding Message}" TextWrapping="Wrap"/>
+        </Border>
+    </Grid>
 </Window>

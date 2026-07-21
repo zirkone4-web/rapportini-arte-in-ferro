@@ -18,16 +18,10 @@ class CompanyService {
   Future<Map<String, dynamic>?> latestAttendance(String employeeId) async {
     final rows = await _client
         .from('timbrature')
-        .select('id,tipo,registrata_at,luogo')
+        .select('id,tipo,registrata_at,created_at,luogo,modalita,stato_verifica')
         .eq('dipendente_id', employeeId)
-        .gte(
-          'registrata_at',
-          DateTime.now()
-              .copyWith(hour: 0, minute: 0, second: 0, millisecond: 0)
-              .toUtc()
-              .toIso8601String(),
-        )
         .order('registrata_at', ascending: false)
+        .order('created_at', ascending: false)
         .limit(1);
     if (rows.isEmpty) return null;
     return Map<String, dynamic>.from(rows.first);
@@ -37,6 +31,9 @@ class CompanyService {
     required String employeeId,
     required String type,
     required LocationSnapshot location,
+    required String mode,
+    String? worksiteId,
+    String? transferReason,
     String? vehicleId,
     String? place,
     String? note,
@@ -44,14 +41,43 @@ class CompanyService {
     await _client.from('timbrature').insert({
       'dipendente_id': employeeId,
       'tipo': type,
-      'registrata_at': location.capturedAt.toUtc().toIso8601String(),
+      'registrata_at': DateTime.now().toUtc().toIso8601String(),
       'gps_latitudine': location.latitude,
       'gps_longitudine': location.longitude,
       'gps_precisione_metri': location.accuracy,
+      'modalita': mode,
+      'cantiere_id': worksiteId,
+      'trasferta_motivo': _nullIfEmpty(transferReason),
       'mezzo_id': vehicleId,
       'luogo': _nullIfEmpty(place),
       'nota': _nullIfEmpty(note),
     });
+  }
+
+  Future<Map<String, dynamic>> loadAttendanceConfiguration() async {
+    final values = await Future.wait([
+      _client
+          .from('configurazione_azienda')
+          .select(
+            'ragione_sociale,indirizzo,gps_latitudine,gps_longitudine,'
+            'raggio_presenza_metri,controllo_gps_presenze',
+          )
+          .limit(1),
+      _client
+          .from('cantieri')
+          .select(
+            'id,nome,indirizzo,gps_latitudine,gps_longitudine,'
+            'raggio_presenza_metri,cliente:clienti(ragione_sociale)',
+          )
+          .eq('attivo', true)
+          .order('nome'),
+    ]);
+    final companyRows = List<Map<String, dynamic>>.from(values[0] as List);
+    final worksites = List<Map<String, dynamic>>.from(values[1] as List);
+    return {
+      'company': companyRows.isEmpty ? null : companyRows.first,
+      'worksites': worksites,
+    };
   }
 
   Future<void> registerFuel({

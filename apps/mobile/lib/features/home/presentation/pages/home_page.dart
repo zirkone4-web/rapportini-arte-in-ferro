@@ -2,6 +2,7 @@ import 'package:arte_in_ferro_rapportini/features/auth/domain/entities/app_user.
 import 'package:arte_in_ferro_rapportini/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/presentation/bloc/auth_event.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/presentation/widgets/company_mark.dart';
+import 'package:arte_in_ferro_rapportini/features/admin/presentation/admin_dashboard_page.dart';
 import 'package:arte_in_ferro_rapportini/features/company/presentation/company_pages.dart';
 import 'package:arte_in_ferro_rapportini/features/rapportini/presentation/pages/rapportini_page.dart';
 import 'package:flutter/material.dart';
@@ -159,11 +160,12 @@ class HomePage extends StatelessWidget {
             ),
             if (user.role.isAdmin) ...[
               const SizedBox(height: 14),
-              const _ActionCard(
+              _ActionCard(
                 icon: Icons.dashboard_outlined,
                 title: 'Amministrazione',
-                subtitle: 'La gestione completa sarà disponibile su Windows',
-                badge: 'Desktop',
+                subtitle: 'Presenze, ore, dipendenti, clienti e cantieri',
+                badge: 'Accesso admin',
+                onTap: () => _push(context, const AdminDashboardPage()),
               ),
             ],
           ],

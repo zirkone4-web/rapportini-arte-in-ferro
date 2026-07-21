@@ -62,6 +62,88 @@ public sealed class SupabaseApiService
         return rows.Select(row => new LookupItem(row.Id, row.Name)).ToList();
     }
 
+    public async Task<IReadOnlyList<ClientRow>> GetClientRowsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var payload = await SendAsync(HttpMethod.Get,
+            RestUri("clienti") +
+            "?select=id,ragione_sociale,indirizzo,referente,telefono,attivo&order=ragione_sociale",
+            null, cancellationToken);
+        return JsonSerializer.Deserialize<List<ClientRow>>(payload, _json) ?? [];
+    }
+
+    public async Task SaveClientAsync(
+        ClientRow? original,
+        string name,
+        string address,
+        string? contact,
+        string? phone,
+        bool active,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        RequireReason(reason);
+        var body = new Dictionary<string, object?>
+        {
+            ["ragione_sociale"] = name.Trim(),
+            ["indirizzo"] = address.Trim(),
+            ["referente"] = EmptyToNull(contact),
+            ["telefono"] = EmptyToNull(phone),
+            ["attivo"] = active,
+            ["motivo_modifica"] = reason.Trim()
+        };
+        var method = original is null ? HttpMethod.Post : HttpMethod.Patch;
+        var uri = RestUri("clienti") + (original is null
+            ? string.Empty
+            : $"?id=eq.{Uri.EscapeDataString(original.Id)}");
+        await SendAsync(method, uri, body, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<WorksiteRow>> GetWorksitesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        const string select = "id,cliente_id,nome,indirizzo,gps_latitudine," +
+            "gps_longitudine,raggio_presenza_metri,attivo,note," +
+            "cliente:clienti!cantieri_cliente_id_fkey(ragione_sociale)";
+        var payload = await SendAsync(HttpMethod.Get,
+            RestUri("cantieri") + $"?select={Uri.EscapeDataString(select)}&order=nome",
+            null, cancellationToken);
+        return JsonSerializer.Deserialize<List<WorksiteRow>>(payload, _json) ?? [];
+    }
+
+    public async Task SaveWorksiteAsync(
+        WorksiteRow? original,
+        string clientId,
+        string name,
+        string address,
+        decimal latitude,
+        decimal longitude,
+        int radiusMeters,
+        bool active,
+        string? notes,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        RequireReason(reason);
+        var body = new Dictionary<string, object?>
+        {
+            ["cliente_id"] = clientId,
+            ["nome"] = name.Trim(),
+            ["indirizzo"] = address.Trim(),
+            ["gps_latitudine"] = latitude,
+            ["gps_longitudine"] = longitude,
+            ["raggio_presenza_metri"] = radiusMeters,
+            ["attivo"] = active,
+            ["note"] = EmptyToNull(notes),
+            ["motivo_modifica"] = reason.Trim()
+        };
+        var method = original is null ? HttpMethod.Post : HttpMethod.Patch;
+        var uri = RestUri("cantieri") + (original is null
+            ? string.Empty
+            : $"?id=eq.{Uri.EscapeDataString(original.Id)}");
+        await SendAsync(method, uri, body, cancellationToken);
+    }
+
     public async Task CreateEmployeeAsync(
         EmployeeCreateRequest employee,
         CancellationToken cancellationToken = default)
@@ -85,9 +167,50 @@ public sealed class SupabaseApiService
         CancellationToken cancellationToken = default)
     {
         var payload = await SendAsync(HttpMethod.Get,
-            RestUri("utenti") + "?select=id,nome_cognome,email,ruolo,attivo&order=nome_cognome",
+            RestUri("utenti") + "?select=id,nome_cognome,email,ruolo,attivo," +
+            "dipendente_profili(telefono,mansione,reparto,data_assunzione,data_cessazione)" +
+            "&order=nome_cognome",
             null, cancellationToken);
         return JsonSerializer.Deserialize<List<EmployeeAccessRow>>(payload, _json) ?? [];
+    }
+
+    public async Task SaveEmployeeAsync(
+        EmployeeAccessRow employee,
+        string fullName,
+        string role,
+        bool active,
+        string? phone,
+        string? job,
+        string? department,
+        DateTime? hireDate,
+        DateTime? endDate,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        RequireReason(reason);
+        if (employee.Active != active)
+            await SetEmployeeActiveAsync(employee.Id, active, cancellationToken);
+        await SendAsync(HttpMethod.Patch,
+            RestUri("utenti") + $"?id=eq.{Uri.EscapeDataString(employee.Id)}",
+            new Dictionary<string, object?>
+            {
+                ["nome_cognome"] = fullName.Trim(),
+                ["ruolo"] = role,
+                ["attivo"] = active,
+                ["motivo_modifica"] = reason.Trim()
+            }, cancellationToken);
+        await SendAsync(HttpMethod.Post,
+            RestUri("dipendente_profili") + "?on_conflict=dipendente_id",
+            new Dictionary<string, object?>
+            {
+                ["dipendente_id"] = employee.Id,
+                ["telefono"] = EmptyToNull(phone),
+                ["mansione"] = EmptyToNull(job),
+                ["reparto"] = EmptyToNull(department),
+                ["data_assunzione"] = hireDate?.ToString("yyyy-MM-dd"),
+                ["data_cessazione"] = endDate?.ToString("yyyy-MM-dd"),
+                ["motivo_modifica"] = reason.Trim()
+            }, cancellationToken, upsert: true);
     }
 
     public async Task SetEmployeeActiveAsync(string id, bool active,
@@ -117,6 +240,99 @@ public sealed class SupabaseApiService
                   "?select=*&order=giorno.desc,nome_cognome.asc";
         var payload = await SendAsync(HttpMethod.Get, uri, null, cancellationToken);
         return JsonSerializer.Deserialize<List<AttendanceRow>>(payload, _json) ?? [];
+    }
+
+    public async Task<IReadOnlyList<AttendanceEventRow>> GetAttendanceEventsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var payload = await SendAsync(HttpMethod.Get,
+            RestUri("v_timbrature_amministrazione") +
+            "?select=*&order=registrata_at.desc&limit=500", null, cancellationToken);
+        return JsonSerializer.Deserialize<List<AttendanceEventRow>>(payload, _json) ?? [];
+    }
+
+    public async Task UpdateAttendanceTimeAsync(
+        string id,
+        DateTimeOffset registeredAt,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        RequireReason(reason);
+        await SendAsync(HttpMethod.Patch,
+            RestUri("timbrature") + $"?id=eq.{Uri.EscapeDataString(id)}",
+            new Dictionary<string, object?>
+            {
+                ["registrata_at"] = registeredAt.ToUniversalTime().ToString("O"),
+                ["modificata_da"] = _session.UserId,
+                ["motivo_modifica"] = reason.Trim()
+            }, cancellationToken);
+    }
+
+    public async Task ForceAttendanceAsync(
+        string employeeId,
+        string type,
+        DateTimeOffset registeredAt,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        RequireReason(reason);
+        await SendAsync(HttpMethod.Post, RestUri("timbrature"),
+            new Dictionary<string, object?>
+            {
+                ["dipendente_id"] = employeeId,
+                ["tipo"] = type,
+                ["registrata_at"] = registeredAt.ToUniversalTime().ToString("O"),
+                ["gps_latitudine"] = null,
+                ["gps_longitudine"] = null,
+                ["modalita"] = "sede",
+                ["stato_verifica"] = "valida",
+                ["forzata_da_amministratore"] = true,
+                ["luogo"] = "Registrazione amministrativa",
+                ["modificata_da"] = _session.UserId,
+                ["motivo_modifica"] = reason.Trim()
+            }, cancellationToken);
+    }
+
+    public async Task ReviewAttendanceAsync(
+        string id,
+        bool approved,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        RequireReason(reason);
+        await SendAsync(HttpMethod.Patch,
+            RestUri("timbrature") + $"?id=eq.{Uri.EscapeDataString(id)}",
+            new Dictionary<string, object?>
+            {
+                ["stato_verifica"] = approved ? "valida" : "rifiutata",
+                ["autorizzata_da"] = _session.UserId,
+                ["autorizzata_at"] = DateTimeOffset.UtcNow.ToString("O"),
+                ["modificata_da"] = _session.UserId,
+                ["motivo_modifica"] = reason.Trim()
+            }, cancellationToken);
+    }
+
+    public async Task AuthorizeHoursAsync(
+        AttendanceRow row,
+        string status,
+        decimal? authorizedHours,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        RequireReason(reason);
+        await SendAsync(HttpMethod.Post,
+            RestUri("presenze_revisioni") + "?on_conflict=dipendente_id,giorno",
+            new Dictionary<string, object?>
+            {
+                ["dipendente_id"] = row.EmployeeId,
+                ["giorno"] = row.Day.ToString("yyyy-MM-dd"),
+                ["stato"] = status,
+                ["ore_autorizzate"] = authorizedHours,
+                ["nota_amministratore"] = reason.Trim(),
+                ["motivo_modifica"] = reason.Trim(),
+                ["autorizzata_da"] = _session.UserId,
+                ["autorizzata_at"] = DateTimeOffset.UtcNow.ToString("O")
+            }, cancellationToken, upsert: true);
     }
 
     public async Task<IReadOnlyList<DeadlineRow>> GetDeadlinesAsync(
@@ -288,13 +504,18 @@ public sealed class SupabaseApiService
 
     public async Task SaveCompanySettingsAsync(CompanySettingsRow company, CancellationToken cancellationToken = default)
     {
+        RequireReason(company.ModificationReason ?? string.Empty);
         await SendAsync(HttpMethod.Patch, RestUri("configurazione_azienda") + "?id=eq.true", new Dictionary<string, object?>
         {
             ["ragione_sociale"] = company.CompanyName.Trim(), ["partita_iva"] = EmptyToNull(company.VatNumber),
             ["codice_fiscale"] = EmptyToNull(company.FiscalCode), ["indirizzo"] = EmptyToNull(company.Address),
             ["comune"] = EmptyToNull(company.City), ["provincia"] = EmptyToNull(company.Province), ["cap"] = EmptyToNull(company.PostalCode),
             ["email"] = EmptyToNull(company.Email), ["pec"] = EmptyToNull(company.Pec),
-            ["telefono_principale"] = EmptyToNull(company.Phone), ["sito_web"] = EmptyToNull(company.Website)
+            ["telefono_principale"] = EmptyToNull(company.Phone), ["sito_web"] = EmptyToNull(company.Website),
+            ["gps_latitudine"] = company.Latitude, ["gps_longitudine"] = company.Longitude,
+            ["raggio_presenza_metri"] = company.AttendanceRadiusMeters,
+            ["controllo_gps_presenze"] = company.AttendanceGpsEnabled,
+            ["motivo_modifica"] = company.ModificationReason!.Trim()
         }, cancellationToken);
     }
 
@@ -358,6 +579,7 @@ public sealed class SupabaseApiService
         ReportUpdate update,
         CancellationToken cancellationToken = default)
     {
+        RequireReason(update.AdminNote ?? string.Empty);
         var body = new Dictionary<string, object?>
         {
             ["luogo"] = update.Place.Trim(),
@@ -367,7 +589,8 @@ public sealed class SupabaseApiService
             ["data_ora_fine"] = update.EndAt.ToUniversalTime().ToString("O"),
             ["descrizione"] = update.Description.Trim(),
             ["stato"] = update.Status,
-            ["nota_amministratore"] = EmptyToNull(update.AdminNote)
+            ["nota_amministratore"] = EmptyToNull(update.AdminNote),
+            ["motivo_modifica"] = update.AdminNote!.Trim()
         };
         var uri = RestUri("rapportini") +
                   $"?id=eq.{Uri.EscapeDataString(original.Id)}" +
@@ -383,10 +606,12 @@ public sealed class SupabaseApiService
         string? note,
         CancellationToken cancellationToken = default)
     {
+        RequireReason(note ?? string.Empty);
         var body = new Dictionary<string, object?>
         {
             ["stato"] = status,
-            ["nota_amministratore"] = EmptyToNull(note)
+            ["nota_amministratore"] = EmptyToNull(note),
+            ["motivo_modifica"] = note!.Trim()
         };
         var uri = RestUri("rapportini") +
                   $"?id=eq.{Uri.EscapeDataString(original.Id)}" +
@@ -460,13 +685,19 @@ public sealed class SupabaseApiService
         string uri,
         object? body,
         CancellationToken cancellationToken,
-        bool returnRepresentation = false)
+        bool returnRepresentation = false,
+        bool upsert = false)
     {
         using var request = new HttpRequestMessage(method, uri);
         request.Headers.Add("apikey", _settings.SupabasePublishableKey);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _session.AccessToken);
-        if (returnRepresentation)
-            request.Headers.TryAddWithoutValidation("Prefer", "return=representation");
+        if (returnRepresentation || upsert)
+        {
+            var preferences = new List<string>();
+            if (upsert) preferences.Add("resolution=merge-duplicates");
+            if (returnRepresentation) preferences.Add("return=representation");
+            request.Headers.TryAddWithoutValidation("Prefer", string.Join(",", preferences));
+        }
         if (body is not null)
         {
             request.Content = new StringContent(
@@ -492,6 +723,12 @@ public sealed class SupabaseApiService
 
     private static string? EmptyToNull(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static void RequireReason(string reason)
+    {
+        if (reason.Trim().Length < 3)
+            throw new ApiException("La motivazione è obbligatoria (almeno 3 caratteri).");
+    }
 
     private static string ReadError(string payload)
     {

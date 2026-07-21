@@ -9,7 +9,37 @@ function logout(){localStorage.removeItem('af_token');token=null;location.reload
 function geo(){return new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(p=>resolve({gps_latitudine:p.coords.latitude,gps_longitudine:p.coords.longitude,gps_precisione_metri:p.coords.accuracy}),()=>reject(Error('Attiva la posizione GPS e riprova.')),{enableHighAccuracy:true,timeout:15000}))}
 function openPage(title,html){$('menu').classList.add('hidden');const p=$('page');p.innerHTML=`<div class="page-title"><button class="back">←</button><h2>${title}</h2></div>${html}`;p.classList.remove('hidden');p.querySelector('.back').onclick=menu}
 function menu(){$('page').classList.add('hidden');$('menu').classList.remove('hidden')}
-async function attendance(){openPage('Presenze','<div class="spinner">Caricamento…</div>');const rows=await api('timbrature',{query:`?dipendente_id=eq.${user.id}&select=tipo,registrata_at,luogo&order=registrata_at.desc&limit=10`});$('page').innerHTML+=`<div class="actions"><button id="in">REGISTRA ENTRATA</button><button id="out" class="secondary">REGISTRA USCITA</button></div><div id="msg"></div>${rows.map(x=>`<div class="item"><b>${x.tipo.toUpperCase()}</b><small>${new Date(x.registrata_at).toLocaleString('it-IT')} ${esc(x.luogo||'')}</small></div>`).join('')}`;$('page').querySelector('.spinner').remove();for(const [id,tipo] of [['in','entrata'],['out','uscita']])$(id).onclick=async()=>{try{$('msg').textContent='Rilevamento posizione…';const g=await geo();await api('timbrature',{method:'POST',body:{dipendente_id:user.id,tipo,registrata_at:new Date().toISOString(),...g}});$('msg').innerHTML='<p class="success">Presenza registrata.</p>';setTimeout(attendance,700)}catch(e){$('msg').innerHTML=`<p class="error">${esc(e.message)}</p>`}}}
+function distanceMeters(a,b){const r=6371000,toRad=x=>x*Math.PI/180,dLat=toRad(b.lat-a.lat),dLon=toRad(b.lon-a.lon);const h=Math.sin(dLat/2)**2+Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;return r*2*Math.asin(Math.sqrt(h))}
+async function attendance(){
+  openPage('Presenze','<div class="spinner">Caricamento…</div>');
+  const [rows,companies,worksites]=await Promise.all([
+    api('timbrature',{query:`?dipendente_id=eq.${user.id}&select=tipo,registrata_at,created_at,luogo,modalita,stato_verifica&order=registrata_at.desc,created_at.desc&limit=10`}),
+    api('configurazione_azienda',{query:'?select=ragione_sociale,gps_latitudine,gps_longitudine,raggio_presenza_metri,controllo_gps_presenze&limit=1'}),
+    api('cantieri',{query:'?attivo=eq.true&select=id,nome,gps_latitudine,gps_longitudine,raggio_presenza_metri&order=nome'})
+  ]);
+  const company=companies[0]||{};
+  render(`<label><input id="transfer" type="checkbox"> Presenza in trasferta</label><label id="transferBox" class="hidden">Motivo della trasferta *<textarea id="transferReason"></textarea></label><div class="actions"><button id="in">REGISTRA ENTRATA</button><button id="out" class="secondary">REGISTRA USCITA</button></div><p>La posizione viene acquisita solo quando premi il pulsante.</p><div id="msg"></div>${rows.map(x=>`<div class="item"><b>${x.tipo.toUpperCase()}</b><small>${new Date(x.registrata_at).toLocaleString('it-IT')} · ${esc(x.luogo||x.modalita||'')} · ${esc(x.stato_verifica||'')}</small></div>`).join('')}`);
+  $('transfer').onchange=()=> $('transferBox').classList.toggle('hidden',!$('transfer').checked);
+  for(const [id,tipo] of [['in','entrata'],['out','uscita']])$(id).onclick=async()=>{
+    try{
+      $('msg').textContent='Rilevamento posizione…';
+      const g=await geo(),isTransfer=$('transfer').checked,reason=$('transferReason')?.value.trim()||'';
+      if(isTransfer&&reason.length<3)throw Error('Indica il motivo della trasferta.');
+      let mode='sede',worksiteId=null,place=company.ragione_sociale||'Sede aziendale';
+      if(isTransfer){mode='trasferta';place='Trasferta'}else{
+        const refs=[];
+        if(company.gps_latitudine!=null&&company.gps_longitudine!=null)refs.push({kind:'sede',id:null,name:place,lat:+company.gps_latitudine,lon:+company.gps_longitudine,radius:+company.raggio_presenza_metri||200});
+        for(const c of worksites)refs.push({kind:'cantiere',id:c.id,name:c.nome,lat:+c.gps_latitudine,lon:+c.gps_longitudine,radius:+c.raggio_presenza_metri||200});
+        for(const ref of refs){ref.distance=distanceMeters({lat:g.gps_latitudine,lon:g.gps_longitudine},ref);ref.inside=ref.distance<=ref.radius}
+        refs.sort((a,b)=>(Number(b.inside)-Number(a.inside))||(a.distance-b.distance));const nearest=refs[0];
+        if(company.controllo_gps_presenze&&(!nearest||nearest.distance>nearest.radius))throw Error(`Sei fuori dall’area autorizzata${nearest?` (${Math.round(nearest.distance)} m da ${nearest.name})`:''}. Attiva Presenza in trasferta.`);
+        if(nearest){mode=nearest.kind;worksiteId=nearest.id;place=nearest.name}
+      }
+      await api('timbrature',{method:'POST',body:{dipendente_id:user.id,tipo,registrata_at:new Date().toISOString(),modalita:mode,cantiere_id:worksiteId,trasferta_motivo:isTransfer?reason:null,luogo:place,...g}});
+      $('msg').innerHTML='<p class="success">Presenza registrata.</p>';setTimeout(attendance,700)
+    }catch(e){$('msg').innerHTML=`<p class="error">${esc(e.message)}</p>`}
+  }
+}
 async function documents(){openPage('I miei documenti','<div class="spinner">Caricamento…</div>');const rows=await api('dipendente_documenti',{query:`?dipendente_id=eq.${user.id}&attivo=eq.true&visibile_dipendente=eq.true&select=*&order=data_scadenza.asc`});render(rows.length?rows.map(x=>`<div class="item"><b>${esc(x.titolo)}</b><span class="badge">${esc(x.categoria)}</span><small>Scadenza: ${x.data_scadenza?new Date(x.data_scadenza).toLocaleDateString('it-IT'):'Nessuna'}</small>${x.documento_url?`<a href="${esc(x.documento_url)}" target="_blank">Apri documento</a>`:''}</div>`).join(''):'<p>Nessun documento disponibile.</p>')}
 async function communications(){openPage('Comunicazioni','<div class="spinner">Caricamento…</div>');const rows=await api('comunicazione_destinatari',{query:`?dipendente_id=eq.${user.id}&select=comunicazione_id,letta_at,confermata_at,comunicazioni(*)&order=comunicazione_id.desc`});render(rows.map(x=>{const c=x.comunicazioni;return `<div class="item"><b>${esc(c.titolo)}</b><span class="badge">${esc(c.priorita)}</span><p>${esc(c.messaggio)}</p>${!x.confermata_at&&c.richiede_conferma?`<button onclick="confirmMessage('${c.id}')">LETTO E CONFERMATO</button>`:''}</div>`}).join('')||'<p>Nessuna comunicazione.</p>')}
 async function confirmMessage(id){await api('comunicazione_destinatari',{method:'PATCH',query:`?dipendente_id=eq.${user.id}&comunicazione_id=eq.${id}`,body:{letta_at:new Date().toISOString(),confermata_at:new Date().toISOString()}});communications()}

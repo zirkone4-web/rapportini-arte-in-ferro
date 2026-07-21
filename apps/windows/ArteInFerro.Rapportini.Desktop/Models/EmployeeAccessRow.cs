@@ -9,5 +9,6 @@ public sealed class EmployeeAccessRow
     [JsonPropertyName("email")] public string Email { get; set; } = string.Empty;
     [JsonPropertyName("ruolo")] public string Role { get; set; } = string.Empty;
     [JsonPropertyName("attivo")] public bool Active { get; set; }
+    [JsonPropertyName("dipendente_profili")] public EmployeeProfileRow? Profile { get; set; }
     public string StateLabel => Active ? "Attivo" : "Disabilitato";
 }

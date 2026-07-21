@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Globalization;
 using ArteInFerro.Rapportini.Desktop.Models;
 using ArteInFerro.Rapportini.Desktop.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -20,6 +22,11 @@ public partial class CompanySettingsViewModel : ObservableObject
     [ObservableProperty] private string _pec = string.Empty;
     [ObservableProperty] private string _phone = string.Empty;
     [ObservableProperty] private string _website = string.Empty;
+    [ObservableProperty] private string _latitudeText = string.Empty;
+    [ObservableProperty] private string _longitudeText = string.Empty;
+    [ObservableProperty] private int _attendanceRadiusMeters = 200;
+    [ObservableProperty] private bool _attendanceGpsEnabled;
+    [ObservableProperty] private string _modificationReason = string.Empty;
     [ObservableProperty] private string _contactName = string.Empty;
     [ObservableProperty] private string _contactRole = string.Empty;
     [ObservableProperty] private string _contactPhone = string.Empty;
@@ -57,6 +64,10 @@ public partial class CompanySettingsViewModel : ObservableObject
             City = company.City ?? ""; Province = company.Province ?? "";
             PostalCode = company.PostalCode ?? ""; Email = company.Email ?? "";
             Pec = company.Pec ?? ""; Phone = company.Phone ?? ""; Website = company.Website ?? "";
+            LatitudeText = company.Latitude?.ToString(CultureInfo.InvariantCulture) ?? "";
+            LongitudeText = company.Longitude?.ToString(CultureInfo.InvariantCulture) ?? "";
+            AttendanceRadiusMeters = company.AttendanceRadiusMeters;
+            AttendanceGpsEnabled = company.AttendanceGpsEnabled;
             var contacts = await _api.GetCompanyContactsAsync();
             Contacts.Clear(); foreach (var contact in contacts) Contacts.Add(contact);
             Message = $"{Contacts.Count} contatti registrati";
@@ -69,16 +80,41 @@ public partial class CompanySettingsViewModel : ObservableObject
     private async Task SaveCompanyAsync()
     {
         if (CompanyName.Trim().Length < 2) { Message = "Inserisci la ragione sociale."; return; }
+        decimal? latitude = null;
+        decimal? longitude = null;
+        if (!string.IsNullOrWhiteSpace(LatitudeText) && !TryCoordinate(LatitudeText, out latitude))
+        { Message = "Latitudine non valida."; return; }
+        if (!string.IsNullOrWhiteSpace(LongitudeText) && !TryCoordinate(LongitudeText, out longitude))
+        { Message = "Longitudine non valida."; return; }
+        if (AttendanceGpsEnabled && (latitude is null || longitude is null))
+        { Message = "Inserisci le coordinate prima di attivare il controllo presenze."; return; }
         await RunAsync(async () =>
         {
             await _api.SaveCompanySettingsAsync(new CompanySettingsRow
             {
                 CompanyName = CompanyName, VatNumber = VatNumber, FiscalCode = FiscalCode,
                 Address = Address, City = City, Province = Province, PostalCode = PostalCode,
-                Email = Email, Pec = Pec, Phone = Phone, Website = Website
+                Email = Email, Pec = Pec, Phone = Phone, Website = Website,
+                Latitude = latitude, Longitude = longitude,
+                AttendanceRadiusMeters = AttendanceRadiusMeters,
+                AttendanceGpsEnabled = AttendanceGpsEnabled,
+                ModificationReason = ModificationReason
             });
+            ModificationReason = string.Empty;
             Message = "Dati aziendali salvati.";
         });
+    }
+
+    [RelayCommand]
+    private void OpenCompanyMap()
+    {
+        if (!TryCoordinate(LatitudeText, out var latitude) ||
+            !TryCoordinate(LongitudeText, out var longitude) || latitude is null || longitude is null)
+        { Message = "Inserisci coordinate valide."; return; }
+        var url = "https://www.google.com/maps/search/?api=1&query=" +
+                  latitude.Value.ToString(CultureInfo.InvariantCulture) + "," +
+                  longitude.Value.ToString(CultureInfo.InvariantCulture);
+        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
     }
 
     [RelayCommand]
@@ -100,5 +136,13 @@ public partial class CompanySettingsViewModel : ObservableObject
         if (IsBusy) return; IsBusy = true;
         try { await operation(); } catch (Exception ex) { Message = ex.Message; }
         finally { IsBusy = false; }
+    }
+
+    private static bool TryCoordinate(string value, out decimal? coordinate)
+    {
+        if (decimal.TryParse(value.Replace(',', '.'), NumberStyles.Number,
+            CultureInfo.InvariantCulture, out var parsed))
+        { coordinate = parsed; return true; }
+        coordinate = null; return false;
     }
 }

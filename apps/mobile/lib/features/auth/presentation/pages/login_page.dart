@@ -4,6 +4,7 @@ import 'package:arte_in_ferro_rapportini/features/auth/presentation/bloc/auth_st
 import 'package:arte_in_ferro_rapportini/features/auth/presentation/widgets/company_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -181,6 +182,15 @@ class _LoginPageState extends State<LoginPage> {
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
+                            TextButton(
+                              onPressed: () => launchUrl(
+                                Uri.parse(
+                                  'https://zirkone4-web.github.io/rapportini-arte-in-ferro/privacy.html',
+                                ),
+                                mode: LaunchMode.externalApplication,
+                              ),
+                              child: const Text('PRIVACY POLICY'),
+                            ),
                           ],
                         ),
                       ),
@@ -266,4 +276,3 @@ class _LoginError extends StatelessWidget {
     );
   }
 }
-

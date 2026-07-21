@@ -118,7 +118,8 @@ def configure_ios(root: Path) -> None:
         "L’accesso alle foto serve per allegare immagini ai rapportini."
     )
     values["NSLocationWhenInUseUsageDescription"] = (
-        "La posizione viene registrata quando salvi un rapportino di lavoro."
+        "La posizione viene registrata soltanto quando salvi una presenza, "
+        "un rapportino o un’altra operazione aziendale che richiede il GPS."
     )
 
     with info.open("wb") as stream:

@@ -70,7 +70,7 @@
                     </StackPanel>
 
                     <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3">
-                        <TextBlock Text="Nota amministratore / motivo rifiuto" FontWeight="SemiBold" />
+                        <TextBlock Text="Motivazione modifica / nota amministratore *" FontWeight="SemiBold" />
                         <TextBox Text="{Binding AdminNote}" AcceptsReturn="True"
                                  TextWrapping="Wrap" Height="86" />
                         <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C"
