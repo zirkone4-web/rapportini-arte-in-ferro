@@ -52,16 +52,34 @@ jobs:
       - name: Genera piattaforme e permessi
         working-directory: .
         run: bash tools/bootstrap_mobile.sh
+      - name: Configura firma Android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64"
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/arte-in-ferro-upload.jks
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=arte-in-ferro-upload.jks\n' \
+            "$KEYSTORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" > android/key.properties
       - name: Analisi
         run: flutter analyze --no-fatal-infos
       - name: Test
         run: flutter test
       - name: Crea APK release
         run: flutter build apk --release
+      - name: Crea Android App Bundle Play Store
+        run: flutter build appbundle --release
       - uses: actions/upload-artifact@v4
         with:
           name: rapportini-android-apk
           path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arte-in-ferro-play-store-aab
+          path: apps/mobile/build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
 
   windows:

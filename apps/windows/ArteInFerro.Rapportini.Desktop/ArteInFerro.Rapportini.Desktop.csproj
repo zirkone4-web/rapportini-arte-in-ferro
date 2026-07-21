@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="Assets\logo_arte_in_ferro.png" />
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

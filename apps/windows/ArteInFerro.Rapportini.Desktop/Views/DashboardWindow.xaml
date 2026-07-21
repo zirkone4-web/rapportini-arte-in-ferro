@@ -22,18 +22,10 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="46" Height="46" Background="White" CornerRadius="10">
-                        <TextBlock Text="AF" Foreground="{StaticResource IronBlue}"
-                                   FontWeight="Bold" FontSize="18"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                    <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="ARTE IN FERRO" Foreground="White"
-                                   FontSize="20" FontWeight="Bold" />
-                        <TextBlock Text="Piattaforma Management" Foreground="#D8E7F5" />
-                    </StackPanel>
-                </StackPanel>
+                <Border Width="300" Height="54" Background="White" CornerRadius="8" Padding="8,3"
+                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <Image Source="/Assets/logo_arte_in_ferro.png" Stretch="Uniform" />
+                </Border>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="Amministratore" Foreground="#D8E7F5"
                                HorizontalAlignment="Right" FontSize="11" />

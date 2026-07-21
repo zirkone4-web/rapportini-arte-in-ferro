@@ -13,16 +13,11 @@
         <Border Width="400" Padding="34" Background="White" CornerRadius="18"
                 VerticalAlignment="Center" HorizontalAlignment="Center">
             <StackPanel>
-                <Border Width="72" Height="72" Background="{StaticResource IronBlue}"
-                        CornerRadius="16" HorizontalAlignment="Left">
-                    <TextBlock Text="AF" Foreground="White" FontWeight="Bold"
-                               FontSize="25" HorizontalAlignment="Center"
-                               VerticalAlignment="Center" />
+                <Border Height="112" Background="White" CornerRadius="12">
+                    <Image Source="/Assets/logo_arte_in_ferro.png" Stretch="Uniform" />
                 </Border>
-                <TextBlock Text="Arte in Ferro" FontSize="28" FontWeight="Bold"
-                           Foreground="{StaticResource IronBlue}" Margin="0,20,0,4" />
                 <TextBlock Text="Gestione rapportini · Amministrazione"
-                           Foreground="#64748B" Margin="0,0,0,28" />
+                           Foreground="#64748B" Margin="0,14,0,28" TextAlignment="Center" />
 
                 <TextBlock Text="Email" FontWeight="SemiBold" />
                 <TextBox Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}"
