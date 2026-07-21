@@ -58,7 +58,7 @@ def configure_android(root: Path) -> None:
 
     text = re.sub(
         r'applicationId\s*=\s*"[^"]+"',
-        'applicationId = "it.arteinferrolascari.app"',
+        'applicationId = "com.arteinferrolascari.myapp"',
         text,
     )
 
