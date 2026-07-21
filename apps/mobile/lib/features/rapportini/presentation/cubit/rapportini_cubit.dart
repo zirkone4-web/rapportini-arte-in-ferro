@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:arte_in_ferro_rapportini/features/rapportini/domain/entities/rapportino.dart';
+import 'package:arte_in_ferro_rapportini/features/rapportini/domain/entities/cliente.dart';
 import 'package:arte_in_ferro_rapportini/features/rapportini/domain/repositories/rapportini_repository.dart';
 import 'package:arte_in_ferro_rapportini/features/rapportini/presentation/cubit/rapportini_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -46,6 +47,13 @@ class RapportiniCubit extends Cubit<RapportiniState> {
   ) async {
     await _repository.saveRapportino(rapportino, foto);
     await load(refreshClienti: false);
+  }
+
+  Future<Cliente> createCliente(Cliente cliente) async {
+    final created = await _repository.createCliente(cliente);
+    final clienti = await _repository.loadClienti(refresh: false);
+    emit(state.copyWith(clienti: clienti, clearMessage: true));
+    return created;
   }
 
   Future<void> sync() async {

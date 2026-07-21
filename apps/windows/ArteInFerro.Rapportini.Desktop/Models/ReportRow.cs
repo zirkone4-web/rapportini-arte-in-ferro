@@ -19,6 +19,12 @@ public sealed class ReportRow
     [JsonPropertyName("rif_appuntamento")]
     public string? AppointmentReference { get; set; }
 
+    [JsonPropertyName("targa_mezzo")]
+    public string? VehiclePlate { get; set; }
+
+    [JsonPropertyName("km_mezzo")]
+    public int? VehicleKm { get; set; }
+
     [JsonPropertyName("tipologia_intervento")]
     public string InterventionType { get; set; } = string.Empty;
 

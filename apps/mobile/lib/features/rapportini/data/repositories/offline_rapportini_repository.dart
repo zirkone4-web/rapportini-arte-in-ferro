@@ -43,6 +43,16 @@ class OfflineRapportiniRepository implements RapportiniRepository {
   }
 
   @override
+  Future<Cliente> createCliente(Cliente cliente) async {
+    if (!await _hasConnection()) {
+      throw StateError('Per creare un nuovo cliente serve la connessione internet.');
+    }
+    final created = await _remote.createCliente(cliente);
+    await _database.replaceClienti([created]);
+    return created;
+  }
+
+  @override
   Future<List<RapportinoFoto>> loadFoto(String rapportinoId) {
     return _database.listFoto(rapportinoId);
   }
@@ -140,6 +150,8 @@ class OfflineRapportiniRepository implements RapportiniRepository {
         remote['cliente_id'] == local.clienteId &&
         remote['luogo'] == local.luogo &&
         remote['rif_appuntamento'] == local.rifAppuntamento &&
+        remote['targa_mezzo'] == local.targaMezzo &&
+        remote['km_mezzo'] == local.kmMezzo &&
         remote['tipologia_intervento'] == local.tipologia.databaseValue &&
         sameInstant(local.dataOraInizio, remote['data_ora_inizio']) &&
         sameInstant(local.dataOraFine, remote['data_ora_fine']) &&
@@ -223,6 +235,8 @@ class OfflineRapportiniRepository implements RapportiniRepository {
       clienteNome: clienteNome,
       luogo: json['luogo'] as String,
       rifAppuntamento: json['rif_appuntamento'] as String?,
+      targaMezzo: json['targa_mezzo'] as String?,
+      kmMezzo: json['km_mezzo'] as int?,
       tipologia: TipoIntervento.fromDatabase(
         json['tipologia_intervento'] as String,
       ),

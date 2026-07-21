@@ -18,6 +18,8 @@ class SyncResult {
 abstract interface class RapportiniRepository {
   Future<List<Cliente>> loadClienti({bool refresh = true});
 
+  Future<Cliente> createCliente(Cliente cliente);
+
   Future<List<Rapportino>> loadRapportini(String dipendenteId);
 
   Future<List<RapportinoFoto>> loadFoto(String rapportinoId);
@@ -33,4 +35,3 @@ abstract interface class RapportiniRepository {
 
   Future<SyncResult> sync(String dipendenteId);
 }
-

@@ -43,7 +43,14 @@ class Cliente extends Equatable {
         'telefono': telefono,
       };
 
+  Map<String, Object?> toRemoteMap() => {
+        'id': id,
+        'ragione_sociale': ragioneSociale,
+        'indirizzo': indirizzo,
+        'referente': referente,
+        'telefono': telefono,
+      };
+
   @override
   List<Object?> get props => [id, ragioneSociale, indirizzo, referente, telefono];
 }
-

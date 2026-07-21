@@ -152,7 +152,9 @@ class _RapportiniViewState extends State<_RapportiniView> {
                             padding: const EdgeInsets.only(bottom: 12),
                             child: _ReportCard(
                               report: report,
-                              onTap: () => report.stato.editable
+                              onTap: () => (report.stato.editable ||
+                                      report.sincronizzazione ==
+                                          StatoSincronizzazione.errore)
                                   ? _openForm(report)
                                   : _showDetails(report),
                             ),
@@ -287,7 +289,12 @@ class _ReportCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(report.stato.editable ? Icons.edit_outlined : Icons.lock),
+              Icon(
+                report.stato.editable ||
+                        report.sincronizzazione == StatoSincronizzazione.errore
+                    ? Icons.edit_outlined
+                    : Icons.lock,
+              ),
             ],
           ),
         ),

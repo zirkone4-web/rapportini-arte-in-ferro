@@ -12,7 +12,7 @@ class LocalDatabase {
     final root = await getDatabasesPath();
     _database = await openDatabase(
       p.join(root, 'arte_in_ferro_rapportini.db'),
-      version: 2,
+      version: 3,
       onConfigure: (database) => database.execute('PRAGMA foreign_keys = ON'),
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -48,6 +48,8 @@ class LocalDatabase {
         cliente_nome TEXT NOT NULL,
         luogo TEXT NOT NULL,
         rif_appuntamento TEXT,
+        targa_mezzo TEXT,
+        km_mezzo INTEGER,
         tipologia TEXT NOT NULL,
         data_ora_inizio TEXT NOT NULL,
         data_ora_fine TEXT,
@@ -113,6 +115,10 @@ class LocalDatabase {
     int newVersion,
   ) async {
     if (oldVersion < 2) await _createProfileTable(database);
+    if (oldVersion < 3) {
+      await database.execute('ALTER TABLE rapportini ADD COLUMN targa_mezzo TEXT');
+      await database.execute('ALTER TABLE rapportini ADD COLUMN km_mezzo INTEGER');
+    }
   }
 
   Future<void> _createProfileTable(Database database) {

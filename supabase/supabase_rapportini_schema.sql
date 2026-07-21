@@ -80,6 +80,8 @@ create table if not exists public.rapportini (
   cliente_id uuid not null references public.clienti (id) on delete restrict,
   luogo text not null check (char_length(trim(luogo)) between 2 and 300),
   rif_appuntamento text,
+  targa_mezzo text,
+  km_mezzo integer,
   tipologia_intervento public.tipo_intervento not null,
   data_ora_inizio timestamptz not null,
   data_ora_fine timestamptz,
@@ -112,6 +114,8 @@ create table if not exists public.rapportini (
     check (gps_longitudine is null or gps_longitudine between -180 and 180),
   constraint rapportini_precisione_valida
     check (gps_precisione_metri is null or gps_precisione_metri >= 0),
+  constraint rapportini_km_mezzo_validi
+    check (km_mezzo is null or km_mezzo >= 0),
   constraint rapportini_gps_coerente
     check (
       (gps_latitudine is null and gps_longitudine is null)
@@ -409,6 +413,18 @@ on public.clienti
 for insert
 to authenticated
 with check (app_private.is_admin());
+
+drop policy if exists clienti_operatore_insert on public.clienti;
+create policy clienti_operatore_insert
+on public.clienti
+for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.utenti u
+    where u.id = (select auth.uid()) and u.attivo
+  )
+);
 
 drop policy if exists clienti_admin_update on public.clienti;
 create policy clienti_admin_update

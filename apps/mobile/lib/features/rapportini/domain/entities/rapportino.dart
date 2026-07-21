@@ -69,6 +69,8 @@ class Rapportino extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.rifAppuntamento,
+    this.targaMezzo,
+    this.kmMezzo,
     this.dataOraFine,
     this.firmaLocalePath,
     this.firmaRemotePath,
@@ -90,6 +92,8 @@ class Rapportino extends Equatable {
       clienteNome: map['cliente_nome'] as String? ?? 'Cliente',
       luogo: map['luogo']! as String,
       rifAppuntamento: map['rif_appuntamento'] as String?,
+      targaMezzo: map['targa_mezzo'] as String?,
+      kmMezzo: map['km_mezzo'] as int?,
       tipologia: TipoIntervento.fromDatabase(map['tipologia']! as String),
       dataOraInizio: DateTime.parse(map['data_ora_inizio']! as String),
       dataOraFine: _dateOrNull(map['data_ora_fine']),
@@ -118,6 +122,8 @@ class Rapportino extends Equatable {
   final String clienteNome;
   final String luogo;
   final String? rifAppuntamento;
+  final String? targaMezzo;
+  final int? kmMezzo;
   final TipoIntervento tipologia;
   final DateTime dataOraInizio;
   final DateTime? dataOraFine;
@@ -149,6 +155,8 @@ class Rapportino extends Equatable {
         'cliente_nome': clienteNome,
         'luogo': luogo,
         'rif_appuntamento': rifAppuntamento,
+        'targa_mezzo': targaMezzo,
+        'km_mezzo': kmMezzo,
         'tipologia': tipologia.databaseValue,
         'data_ora_inizio': dataOraInizio.toUtc().toIso8601String(),
         'data_ora_fine': dataOraFine?.toUtc().toIso8601String(),
@@ -174,6 +182,8 @@ class Rapportino extends Equatable {
         'cliente_id': clienteId,
         'luogo': luogo,
         'rif_appuntamento': rifAppuntamento,
+        'targa_mezzo': targaMezzo,
+        'km_mezzo': kmMezzo,
         'tipologia_intervento': tipologia.databaseValue,
         'data_ora_inizio': dataOraInizio.toUtc().toIso8601String(),
         'data_ora_fine': dataOraFine?.toUtc().toIso8601String(),
@@ -203,6 +213,8 @@ class Rapportino extends Equatable {
       clienteNome: clienteNome,
       luogo: luogo,
       rifAppuntamento: rifAppuntamento,
+      targaMezzo: targaMezzo,
+      kmMezzo: kmMezzo,
       tipologia: tipologia,
       dataOraInizio: dataOraInizio,
       dataOraFine: dataOraFine,
@@ -232,6 +244,8 @@ class Rapportino extends Equatable {
         clienteNome,
         luogo,
         rifAppuntamento,
+        targaMezzo,
+        kmMezzo,
         tipologia,
         dataOraInizio,
         dataOraFine,
@@ -312,4 +326,3 @@ class RapportinoFoto extends Equatable {
 DateTime? _dateOrNull(Object? value) {
   return value is String && value.isNotEmpty ? DateTime.parse(value) : null;
 }
-

@@ -26,7 +26,7 @@ public sealed class ExportService
             var headers = new[]
             {
                 "ID", "Data", "Dipendente", "Cliente", "Luogo", "Tipologia",
-                "Inizio", "Fine", "Ore", "Stato", "Descrizione", "Nota ufficio",
+                "Inizio", "Fine", "Ore", "Targa", "Km mezzo", "Stato", "Descrizione", "Nota ufficio",
                 "Latitudine", "Longitudine", "Aggiornato il"
             };
             for (var column = 0; column < headers.Length; column++)
@@ -45,12 +45,14 @@ public sealed class ExportService
                 if (report.EndAt is not null)
                     sheet.Cell(row, 8).Value = report.EndAt.Value.LocalDateTime;
                 sheet.Cell(row, 9).Value = report.TotalHours;
-                sheet.Cell(row, 10).Value = report.Status;
-                sheet.Cell(row, 11).Value = report.Description;
-                sheet.Cell(row, 12).Value = report.AdminNote ?? string.Empty;
-                if (report.Latitude is not null) sheet.Cell(row, 13).Value = report.Latitude.Value;
-                if (report.Longitude is not null) sheet.Cell(row, 14).Value = report.Longitude.Value;
-                sheet.Cell(row, 15).Value = report.UpdatedAt.LocalDateTime;
+                sheet.Cell(row, 10).Value = report.VehiclePlate ?? string.Empty;
+                if (report.VehicleKm is not null) sheet.Cell(row, 11).Value = report.VehicleKm.Value;
+                sheet.Cell(row, 12).Value = report.Status;
+                sheet.Cell(row, 13).Value = report.Description;
+                sheet.Cell(row, 14).Value = report.AdminNote ?? string.Empty;
+                if (report.Latitude is not null) sheet.Cell(row, 15).Value = report.Latitude.Value;
+                if (report.Longitude is not null) sheet.Cell(row, 16).Value = report.Longitude.Value;
+                sheet.Cell(row, 17).Value = report.UpdatedAt.LocalDateTime;
                 row++;
             }
 
@@ -64,14 +66,14 @@ public sealed class ExportService
             sheet.Column(2).Style.DateFormat.Format = "dd/mm/yyyy";
             sheet.Columns(7, 8).Style.DateFormat.Format = "dd/mm/yyyy hh:mm";
             sheet.Column(9).Style.NumberFormat.Format = "0.00";
-            sheet.Column(15).Style.DateFormat.Format = "dd/mm/yyyy hh:mm";
+            sheet.Column(17).Style.DateFormat.Format = "dd/mm/yyyy hh:mm";
             foreach (var column in sheet.ColumnsUsed())
             {
                 column.AdjustToContents();
                 column.Width = Math.Clamp(column.Width, 8, 45);
             }
-            sheet.Columns(11, 12).Width = 42;
-            sheet.Columns(11, 12).Style.Alignment.WrapText = true;
+            sheet.Columns(13, 14).Width = 42;
+            sheet.Columns(13, 14).Style.Alignment.WrapText = true;
             workbook.SaveAs(path);
         }, cancellationToken);
     }
@@ -157,6 +159,8 @@ public sealed class ExportService
             AddCell(table, "Fine", report.EndAt?.LocalDateTime.ToString("dd/MM/yyyy HH:mm") ?? "—");
             AddCell(table, "Ore totali", report.TotalHours.ToString("0.00"));
             AddCell(table, "Riferimento", report.AppointmentReference ?? "—");
+            AddCell(table, "Targa mezzo", report.VehiclePlate ?? "—");
+            AddCell(table, "Km mezzo", report.VehicleKm?.ToString("N0") ?? "—");
         });
     }
 

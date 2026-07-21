@@ -35,6 +35,8 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
   late final String _id;
   late final TextEditingController _luogoController;
   late final TextEditingController _riferimentoController;
+  late final TextEditingController _targaController;
+  late final TextEditingController _kmController;
   late final TextEditingController _descrizioneController;
   late DateTime _inizio;
   DateTime? _fine;
@@ -55,6 +57,8 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
     _riferimentoController = TextEditingController(
       text: report?.rifAppuntamento,
     );
+    _targaController = TextEditingController(text: report?.targaMezzo);
+    _kmController = TextEditingController(text: report?.kmMezzo?.toString());
     _descrizioneController = TextEditingController(text: report?.descrizione);
     _inizio = report?.dataOraInizio.toLocal() ?? DateTime.now();
     _fine = report?.dataOraFine?.toLocal() ??
@@ -74,6 +78,8 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
   void dispose() {
     _luogoController.dispose();
     _riferimentoController.dispose();
+    _targaController.dispose();
+    _kmController.dispose();
     _descrizioneController.dispose();
     super.dispose();
   }
@@ -130,6 +136,14 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
                       validator: (value) =>
                           value == null ? 'Seleziona il cliente' : null,
                     ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: _busy ? null : _createCliente,
+                        icon: const Icon(Icons.person_add_alt_1_outlined),
+                        label: const Text('Nuovo cliente'),
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<TipoIntervento>(
                       initialValue: _tipologia,
@@ -162,7 +176,7 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
                         labelText: 'Luogo / cantiere *',
                         prefixIcon: Icon(Icons.location_on_outlined),
                       ),
-                      validator: _required,
+                      validator: _validateLuogo,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -172,6 +186,34 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
                         labelText: 'Riferimento appuntamento',
                         prefixIcon: Icon(Icons.event_note_outlined),
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _targaController,
+                      enabled: !_busy,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        labelText: 'Targa mezzo',
+                        prefixIcon: Icon(Icons.local_shipping_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _kmController,
+                      enabled: !_busy,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Chilometri mezzo',
+                        suffixText: 'km',
+                        prefixIcon: Icon(Icons.speed_outlined),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) return null;
+                        final km = int.tryParse(value.trim());
+                        return km == null || km < 0
+                            ? 'Inserisci chilometri validi'
+                            : null;
+                      },
                     ),
                     const SizedBox(height: 24),
                     const _SectionTitle(number: 2, title: 'Data e orari'),
@@ -290,6 +332,97 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
 
   String? _required(String? value) {
     return value == null || value.trim().isEmpty ? 'Campo obbligatorio' : null;
+  }
+
+  String? _validateLuogo(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.length < 2) {
+      return 'Inserisci il luogo o il cantiere (almeno 2 caratteri)';
+    }
+    return null;
+  }
+
+  Future<void> _createCliente() async {
+    final ragione = TextEditingController();
+    final indirizzo = TextEditingController();
+    final referente = TextEditingController();
+    final telefono = TextEditingController();
+    final key = GlobalKey<FormState>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Nuovo cliente'),
+        content: Form(
+          key: key,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: ragione,
+                  decoration: const InputDecoration(labelText: 'Ragione sociale *'),
+                  validator: (value) => (value?.trim().length ?? 0) < 2
+                      ? 'Inserisci almeno 2 caratteri'
+                      : null,
+                ),
+                TextFormField(
+                  controller: indirizzo,
+                  decoration: const InputDecoration(labelText: 'Indirizzo *'),
+                  validator: (value) => (value?.trim().length ?? 0) < 2
+                      ? 'Inserisci l’indirizzo'
+                      : null,
+                ),
+                TextFormField(
+                  controller: referente,
+                  decoration: const InputDecoration(labelText: 'Referente'),
+                ),
+                TextFormField(
+                  controller: telefono,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Telefono'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (key.currentState?.validate() ?? false) {
+                Navigator.pop(dialogContext, true);
+              }
+            },
+            child: const Text('Crea cliente'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    _setBusy(true, 'Creazione cliente…');
+    try {
+      final created = await context.read<RapportiniCubit>().createCliente(
+            Cliente(
+              id: _uuid.v4(),
+              ragioneSociale: ragione.text.trim(),
+              indirizzo: indirizzo.text.trim(),
+              referente: _emptyToNull(referente.text),
+              telefono: _emptyToNull(telefono.text),
+            ),
+          );
+      if (mounted) setState(() => _clienteId = created.id);
+    } on Object catch (error) {
+      _showError(error);
+    } finally {
+      _setBusy(false);
+      ragione.dispose();
+      indirizzo.dispose();
+      referente.dispose();
+      telefono.dispose();
+    }
   }
 
   Future<void> _capturePhoto() async {
@@ -417,6 +550,8 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
         clienteNome: cliente.ragioneSociale,
         luogo: _luogoController.text.trim(),
         rifAppuntamento: _emptyToNull(_riferimentoController.text),
+        targaMezzo: _emptyToNull(_targaController.text)?.toUpperCase(),
+        kmMezzo: int.tryParse(_kmController.text.trim()),
         tipologia: _tipologia,
         dataOraInizio: _inizio,
         dataOraFine: _fine,

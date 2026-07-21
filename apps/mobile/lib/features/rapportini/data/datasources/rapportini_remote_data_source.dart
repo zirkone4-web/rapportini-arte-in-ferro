@@ -26,6 +26,15 @@ class RapportiniRemoteDataSource {
     return rows.map(Cliente.fromRemoteJson).toList(growable: false);
   }
 
+  Future<Cliente> createCliente(Cliente cliente) async {
+    final row = await _client
+        .from('clienti')
+        .insert(cliente.toRemoteMap())
+        .select('id,ragione_sociale,indirizzo,referente,telefono')
+        .single();
+    return Cliente.fromRemoteJson(row);
+  }
+
   Future<List<Map<String, dynamic>>> fetchRapportini(String dipendenteId) async {
     final rows = await _client
         .from('rapportini')

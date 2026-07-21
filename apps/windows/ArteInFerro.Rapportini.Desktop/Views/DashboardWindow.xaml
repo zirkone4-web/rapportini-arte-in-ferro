@@ -110,6 +110,8 @@
                     <DataGridTextColumn Header="Dipendente" Binding="{Binding EmployeeName}" Width="180" />
                     <DataGridTextColumn Header="Cliente" Binding="{Binding ClientName}" Width="210" />
                     <DataGridTextColumn Header="Luogo" Binding="{Binding Place}" Width="200" />
+                    <DataGridTextColumn Header="Targa" Binding="{Binding VehiclePlate}" Width="100" />
+                    <DataGridTextColumn Header="Km" Binding="{Binding VehicleKm, StringFormat=N0}" Width="85" />
                     <DataGridTextColumn Header="Intervento" Binding="{Binding InterventionLabel}" Width="190" />
                     <DataGridTextColumn Header="Ore" Binding="{Binding TotalHours, StringFormat=N2}" Width="70" />
                     <DataGridTextColumn Header="Stato" Binding="{Binding Status}" Width="100" />
