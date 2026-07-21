@@ -38,7 +38,7 @@ class RapportiniRemoteDataSource {
   Future<List<Map<String, dynamic>>> fetchRapportini(String dipendenteId) async {
     final rows = await _client
         .from('rapportini')
-        .select()
+        .select('*,rapportino_collaboratori(dipendente_id)')
         .eq('dipendente_id', dipendenteId)
         .order('data_ora_inizio', ascending: false);
     return rows;
@@ -131,5 +131,24 @@ class RapportiniRemoteDataSource {
         .select();
     if (rows.isEmpty) throw const SyncConflictException();
     return rows.single;
+  }
+
+  Future<void> saveCollaborators(Rapportino report) async {
+    await _client
+        .from('rapportino_collaboratori')
+        .delete()
+        .eq('rapportino_id', report.id);
+    if (report.collaboratoriIds.isEmpty) return;
+    await _client.from('rapportino_collaboratori').insert(
+          report.collaboratoriIds
+              .where((id) => id != report.dipendenteId)
+              .map(
+                (id) => {
+                  'rapportino_id': report.id,
+                  'dipendente_id': id,
+                },
+              )
+              .toList(),
+        );
   }
 }

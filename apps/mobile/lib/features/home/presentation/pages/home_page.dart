@@ -2,6 +2,7 @@ import 'package:arte_in_ferro_rapportini/features/auth/domain/entities/app_user.
 import 'package:arte_in_ferro_rapportini/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/presentation/bloc/auth_event.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/presentation/widgets/company_mark.dart';
+import 'package:arte_in_ferro_rapportini/features/company/presentation/company_pages.dart';
 import 'package:arte_in_ferro_rapportini/features/rapportini/presentation/pages/rapportini_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -48,21 +49,113 @@ class HomePage extends StatelessWidget {
                 Text(user.role.label),
               ],
             ),
-            const SizedBox(height: 28),
-            _ActionCard(
-              icon: Icons.note_add_outlined,
-              title: 'Nuovo rapportino',
-              subtitle: 'Orari, attività, foto, posizione e firma cliente',
-              badge: 'Offline e GPS',
-              onTap: () => _openReports(context, openNew: true),
+            const SizedBox(height: 22),
+            Text(
+              'Servizi aziendali',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+            const SizedBox(height: 14),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth >= 700 ? 3 : 2;
+                return GridView.count(
+                  crossAxisCount: columns,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: constraints.maxWidth >= 700 ? 1.45 : 1.02,
+                  children: [
+                    _MenuTile(
+                      icon: Icons.fingerprint,
+                      title: 'Presenze',
+                      subtitle: 'Entrata e uscita',
+                      color: const Color(0xFF2563EB),
+                      onTap: () => _push(
+                        context,
+                        AttendancePage(user: user),
+                      ),
+                    ),
+                    _MenuTile(
+                      icon: Icons.assignment_outlined,
+                      title: 'Rapportini',
+                      subtitle: 'Cantieri e squadre',
+                      color: const Color(0xFFD86A2E),
+                      onTap: () => _openReports(context),
+                    ),
+                    _MenuTile(
+                      icon: Icons.local_gas_station_outlined,
+                      title: 'Carburante',
+                      subtitle: 'Mezzo e ricevuta',
+                      color: const Color(0xFF059669),
+                      onTap: () => _push(
+                        context,
+                        FuelPage(user: user),
+                      ),
+                    ),
+                    _MenuTile(
+                      icon: Icons.report_problem_outlined,
+                      title: 'Anomalie',
+                      subtitle: 'Segnala un problema',
+                      color: const Color(0xFFDC2626),
+                      onTap: () => _push(
+                        context,
+                        AnomalyPage(user: user),
+                      ),
+                    ),
+                    _MenuTile(
+                      icon: Icons.badge_outlined,
+                      title: 'I miei documenti',
+                      subtitle: 'Corsi e patentini',
+                      color: const Color(0xFF7C3AED),
+                      onTap: () => _push(
+                        context,
+                        EmployeeDocumentsPage(user: user),
+                      ),
+                    ),
+                    _MenuTile(
+                      icon: Icons.notifications_active_outlined,
+                      title: 'Comunicazioni',
+                      subtitle: 'Avvisi aziendali',
+                      color: const Color(0xFFCA8A04),
+                      onTap: () => _push(
+                        context,
+                        CommunicationsPage(user: user),
+                      ),
+                    ),
+                    _MenuTile(
+                      icon: Icons.factory_outlined,
+                      title: 'Azienda',
+                      subtitle: 'Informazioni utili',
+                      color: const Color(0xFF334155),
+                      onTap: () => _push(
+                        context,
+                        const CompanyInfoPage(),
+                      ),
+                    ),
+                    _MenuTile(
+                      icon: Icons.contact_phone_outlined,
+                      title: 'Contatti',
+                      subtitle: 'Uffici ed emergenze',
+                      color: const Color(0xFF0F766E),
+                      onTap: () => _push(
+                        context,
+                        const ContactsPage(),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 14),
             _ActionCard(
-              icon: Icons.history_outlined,
-              title: 'I miei rapportini',
-              subtitle: 'Bozze, inviati, approvati e respinti',
-              badge: 'Sincronizzati',
-              onTap: () => _openReports(context),
+              icon: Icons.note_add_outlined,
+              title: 'Nuovo rapportino',
+              subtitle: 'Crea rapidamente un nuovo rapporto di cantiere',
+              badge: 'Offline e GPS',
+              onTap: () => _openReports(context, openNew: true),
             ),
             if (user.role.isAdmin) ...[
               const SizedBox(height: 14),
@@ -98,6 +191,12 @@ class HomePage extends StatelessWidget {
     );
   }
 
+  Future<void> _push(BuildContext context, Widget page) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => page),
+    );
+  }
+
   Future<void> _confirmLogout(BuildContext context) async {
     final shouldLogout = await showDialog<bool>(
       context: context,
@@ -124,6 +223,66 @@ class HomePage extends StatelessWidget {
     }
   }
 }
+
+class _MenuTile extends StatelessWidget {
+  const _MenuTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(9),
+                  child: Icon(icon, color: color),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 class _ActionCard extends StatelessWidget {
   const _ActionCard({

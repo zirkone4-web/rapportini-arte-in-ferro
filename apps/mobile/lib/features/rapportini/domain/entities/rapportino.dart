@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:equatable/equatable.dart';
 
 enum TipoIntervento {
@@ -69,8 +71,10 @@ class Rapportino extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.rifAppuntamento,
+    this.mezzoId,
     this.targaMezzo,
     this.kmMezzo,
+    this.collaboratoriIds = const [],
     this.dataOraFine,
     this.firmaLocalePath,
     this.firmaRemotePath,
@@ -92,8 +96,10 @@ class Rapportino extends Equatable {
       clienteNome: map['cliente_nome'] as String? ?? 'Cliente',
       luogo: map['luogo']! as String,
       rifAppuntamento: map['rif_appuntamento'] as String?,
+      mezzoId: map['mezzo_id'] as String?,
       targaMezzo: map['targa_mezzo'] as String?,
       kmMezzo: map['km_mezzo'] as int?,
+      collaboratoriIds: _stringList(map['collaboratori_ids']),
       tipologia: TipoIntervento.fromDatabase(map['tipologia']! as String),
       dataOraInizio: DateTime.parse(map['data_ora_inizio']! as String),
       dataOraFine: _dateOrNull(map['data_ora_fine']),
@@ -122,8 +128,10 @@ class Rapportino extends Equatable {
   final String clienteNome;
   final String luogo;
   final String? rifAppuntamento;
+  final String? mezzoId;
   final String? targaMezzo;
   final int? kmMezzo;
+  final List<String> collaboratoriIds;
   final TipoIntervento tipologia;
   final DateTime dataOraInizio;
   final DateTime? dataOraFine;
@@ -155,8 +163,10 @@ class Rapportino extends Equatable {
         'cliente_nome': clienteNome,
         'luogo': luogo,
         'rif_appuntamento': rifAppuntamento,
+        'mezzo_id': mezzoId,
         'targa_mezzo': targaMezzo,
         'km_mezzo': kmMezzo,
+        'collaboratori_ids': jsonEncode(collaboratoriIds),
         'tipologia': tipologia.databaseValue,
         'data_ora_inizio': dataOraInizio.toUtc().toIso8601String(),
         'data_ora_fine': dataOraFine?.toUtc().toIso8601String(),
@@ -182,6 +192,7 @@ class Rapportino extends Equatable {
         'cliente_id': clienteId,
         'luogo': luogo,
         'rif_appuntamento': rifAppuntamento,
+        'mezzo_id': mezzoId,
         'targa_mezzo': targaMezzo,
         'km_mezzo': kmMezzo,
         'tipologia_intervento': tipologia.databaseValue,
@@ -213,8 +224,10 @@ class Rapportino extends Equatable {
       clienteNome: clienteNome,
       luogo: luogo,
       rifAppuntamento: rifAppuntamento,
+      mezzoId: mezzoId,
       targaMezzo: targaMezzo,
       kmMezzo: kmMezzo,
+      collaboratoriIds: collaboratoriIds,
       tipologia: tipologia,
       dataOraInizio: dataOraInizio,
       dataOraFine: dataOraFine,
@@ -244,8 +257,10 @@ class Rapportino extends Equatable {
         clienteNome,
         luogo,
         rifAppuntamento,
+        mezzoId,
         targaMezzo,
         kmMezzo,
+        collaboratoriIds,
         tipologia,
         dataOraInizio,
         dataOraFine,
@@ -264,6 +279,15 @@ class Rapportino extends Equatable {
         sincronizzazione,
         erroreSincronizzazione,
       ];
+}
+
+List<String> _stringList(Object? value) {
+  if (value is! String || value.isEmpty) return const [];
+  try {
+    return List<String>.from(jsonDecode(value) as List);
+  } on Object {
+    return const [];
+  }
 }
 
 class RapportinoFoto extends Equatable {

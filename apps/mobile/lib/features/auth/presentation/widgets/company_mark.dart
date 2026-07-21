@@ -41,7 +41,7 @@ class CompanyMark extends StatelessWidget {
                   ),
             ),
             Text(
-              'RAPPORTINI',
+              'LASCARI APP',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     color: colorScheme.secondary,
                     letterSpacing: 2.2,
@@ -53,4 +53,3 @@ class CompanyMark extends StatelessWidget {
     );
   }
 }
-

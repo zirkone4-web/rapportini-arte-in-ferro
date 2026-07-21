@@ -13,6 +13,26 @@ permissions:
   contents: read
 
 jobs:
+  iphone-web:
+    name: App iPhone PWA
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/pwa
+      - name: Pubblica PWA iPhone
+        id: deployment
+        uses: actions/deploy-pages@v4
+
   android:
     name: APK Android
     runs-on: ubuntu-latest

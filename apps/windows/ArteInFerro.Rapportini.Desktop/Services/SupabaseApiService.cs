@@ -26,6 +26,7 @@ public sealed class SupabaseApiService
         CancellationToken cancellationToken = default)
     {
         const string select = "id,dipendente_id,cliente_id,luogo,rif_appuntamento," +
+            "mezzo_id,targa_mezzo,km_mezzo," +
             "tipologia_intervento,data_ora_inizio,data_ora_fine,ore_totali,descrizione," +
             "firma_cliente_url,gps_latitudine,gps_longitudine,gps_precisione_metri," +
             "gps_rilevato_at,stato,nota_amministratore,created_at,updated_at,versione," +
@@ -59,6 +60,297 @@ public sealed class SupabaseApiService
             cancellationToken);
         var rows = JsonSerializer.Deserialize<List<ClientLookup>>(payload, _json) ?? [];
         return rows.Select(row => new LookupItem(row.Id, row.Name)).ToList();
+    }
+
+    public async Task CreateEmployeeAsync(
+        EmployeeCreateRequest employee,
+        CancellationToken cancellationToken = default)
+    {
+        var body = new Dictionary<string, object?>
+        {
+            ["action"] = "create",
+            ["nome_cognome"] = employee.FullName.Trim(),
+            ["email"] = employee.Email.Trim().ToLowerInvariant(),
+            ["password"] = employee.TemporaryPassword,
+            ["telefono"] = EmptyToNull(employee.Phone),
+            ["mansione"] = EmptyToNull(employee.Job),
+            ["reparto"] = EmptyToNull(employee.Department),
+            ["data_assunzione"] = employee.HireDate?.ToString("yyyy-MM-dd")
+        };
+        var uri = $"{_settings.SupabaseUrl.TrimEnd('/')}/functions/v1/gestione-dipendenti";
+        await SendAsync(HttpMethod.Post, uri, body, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<EmployeeAccessRow>> GetEmployeeAccessAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var payload = await SendAsync(HttpMethod.Get,
+            RestUri("utenti") + "?select=id,nome_cognome,email,ruolo,attivo&order=nome_cognome",
+            null, cancellationToken);
+        return JsonSerializer.Deserialize<List<EmployeeAccessRow>>(payload, _json) ?? [];
+    }
+
+    public async Task SetEmployeeActiveAsync(string id, bool active,
+        CancellationToken cancellationToken = default) =>
+        await EmployeeActionAsync(new Dictionary<string, object?>
+        {
+            ["action"] = "set_active", ["id"] = id, ["attivo"] = active
+        }, cancellationToken);
+
+    public async Task SetTemporaryPasswordAsync(string id, string password,
+        CancellationToken cancellationToken = default) =>
+        await EmployeeActionAsync(new Dictionary<string, object?>
+        {
+            ["action"] = "temporary_password", ["id"] = id, ["password"] = password
+        }, cancellationToken);
+
+    private async Task EmployeeActionAsync(object body, CancellationToken cancellationToken)
+    {
+        var uri = $"{_settings.SupabaseUrl.TrimEnd('/')}/functions/v1/gestione-dipendenti";
+        await SendAsync(HttpMethod.Post, uri, body, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AttendanceRow>> GetAttendanceAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var uri = RestUri("v_presenze_giornaliere") +
+                  "?select=*&order=giorno.desc,nome_cognome.asc";
+        var payload = await SendAsync(HttpMethod.Get, uri, null, cancellationToken);
+        return JsonSerializer.Deserialize<List<AttendanceRow>>(payload, _json) ?? [];
+    }
+
+    public async Task<IReadOnlyList<DeadlineRow>> GetDeadlinesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var uri = RestUri("v_scadenziario") +
+                  "?select=*&order=data_scadenza.asc";
+        var payload = await SendAsync(HttpMethod.Get, uri, null, cancellationToken);
+        return JsonSerializer.Deserialize<List<DeadlineRow>>(payload, _json) ?? [];
+    }
+
+    public async Task<IReadOnlyList<EmployeeDocumentRow>> GetEmployeeDocumentsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        const string select = "id,dipendente_id,categoria,titolo,ente_rilascio," +
+            "numero_documento,data_rilascio,data_scadenza,esito_idoneita," +
+            "documento_url,visibile_dipendente," +
+            "dipendente:utenti!dipendente_documenti_dipendente_id_fkey(nome_cognome)";
+        var uri = RestUri("dipendente_documenti") +
+                  $"?select={Uri.EscapeDataString(select)}&attivo=eq.true&order=data_scadenza.asc";
+        var payload = await SendAsync(HttpMethod.Get, uri, null, cancellationToken);
+        return JsonSerializer.Deserialize<List<EmployeeDocumentRow>>(payload, _json) ?? [];
+    }
+
+    public async Task AddEmployeeDocumentAsync(
+        string employeeId,
+        string category,
+        string title,
+        string? issuer,
+        string? number,
+        DateTime? issueDate,
+        DateTime? expiryDate,
+        string? fitness,
+        string? documentUrl,
+        bool visibleToEmployee,
+        CancellationToken cancellationToken = default)
+    {
+        var body = new Dictionary<string, object?>
+        {
+            ["dipendente_id"] = employeeId,
+            ["categoria"] = category,
+            ["titolo"] = title.Trim(),
+            ["ente_rilascio"] = EmptyToNull(issuer),
+            ["numero_documento"] = EmptyToNull(number),
+            ["data_rilascio"] = issueDate?.ToString("yyyy-MM-dd"),
+            ["data_scadenza"] = expiryDate?.ToString("yyyy-MM-dd"),
+            ["esito_idoneita"] = EmptyToNull(fitness),
+            ["documento_url"] = EmptyToNull(documentUrl),
+            ["visibile_dipendente"] = visibleToEmployee,
+            ["attivo"] = true
+        };
+        await SendAsync(HttpMethod.Post, RestUri("dipendente_documenti"), body, cancellationToken);
+    }
+
+    public async Task SendCommunicationAsync(
+        string title,
+        string message,
+        string priority,
+        bool requireConfirmation,
+        IReadOnlyCollection<string> recipientIds,
+        CancellationToken cancellationToken = default)
+    {
+        var body = new Dictionary<string, object?>
+        {
+            ["creata_da"] = _session.UserId,
+            ["titolo"] = title.Trim(),
+            ["messaggio"] = message.Trim(),
+            ["priorita"] = priority,
+            ["richiede_conferma"] = requireConfirmation
+        };
+        var payload = await SendAsync(
+            HttpMethod.Post,
+            RestUri("comunicazioni") + "?select=id",
+            body,
+            cancellationToken,
+            true);
+        var created = JsonSerializer.Deserialize<List<CreatedId>>(payload, _json) ?? [];
+        var communicationId = created.SingleOrDefault()?.Id ??
+            throw new ApiException("Comunicazione non creata.");
+        var recipients = recipientIds.Select(id => new Dictionary<string, object?>
+        {
+            ["comunicazione_id"] = communicationId,
+            ["dipendente_id"] = id
+        }).ToList();
+        await SendAsync(
+            HttpMethod.Post,
+            RestUri("comunicazione_destinatari"),
+            recipients,
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<VehicleRow>> GetVehiclesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var payload = await SendAsync(
+            HttpMethod.Get,
+            RestUri("mezzi") + "?select=*&order=descrizione.asc",
+            null,
+            cancellationToken);
+        return JsonSerializer.Deserialize<List<VehicleRow>>(payload, _json) ?? [];
+    }
+
+    public async Task AddVehicleAsync(
+        string plate,
+        string description,
+        string? brand,
+        string? model,
+        int? km,
+        CancellationToken cancellationToken = default)
+    {
+        await SendAsync(HttpMethod.Post, RestUri("mezzi"), new Dictionary<string, object?>
+        {
+            ["targa"] = plate.Trim().ToUpperInvariant(),
+            ["descrizione"] = description.Trim(),
+            ["marca"] = EmptyToNull(brand),
+            ["modello"] = EmptyToNull(model),
+            ["km_attuali"] = km,
+            ["attivo"] = true
+        }, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<VehicleDeadlineRow>> GetVehicleDeadlinesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        const string select = "id,mezzo_id,tipo,descrizione,fornitore_ente," +
+            "numero_documento,data_scadenza,completata," +
+            "mezzo:mezzi!scadenze_mezzi_mezzo_id_fkey(targa,descrizione)";
+        var uri = RestUri("scadenze_mezzi") +
+                  $"?select={Uri.EscapeDataString(select)}&order=data_scadenza.asc";
+        var payload = await SendAsync(HttpMethod.Get, uri, null, cancellationToken);
+        return JsonSerializer.Deserialize<List<VehicleDeadlineRow>>(payload, _json) ?? [];
+    }
+
+    public async Task AddVehicleDeadlineAsync(
+        string vehicleId,
+        string type,
+        string description,
+        string? provider,
+        string? documentNumber,
+        DateTime expiryDate,
+        CancellationToken cancellationToken = default)
+    {
+        await SendAsync(HttpMethod.Post, RestUri("scadenze_mezzi"), new Dictionary<string, object?>
+        {
+            ["mezzo_id"] = vehicleId,
+            ["tipo"] = type,
+            ["descrizione"] = description.Trim(),
+            ["fornitore_ente"] = EmptyToNull(provider),
+            ["numero_documento"] = EmptyToNull(documentNumber),
+            ["data_scadenza"] = expiryDate.ToString("yyyy-MM-dd")
+        }, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CompanyCertificationRow>> GetCompanyCertificationsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var payload = await SendAsync(HttpMethod.Get,
+            RestUri("certificazioni_azienda") + "?select=*&order=data_scadenza.asc",
+            null, cancellationToken);
+        return JsonSerializer.Deserialize<List<CompanyCertificationRow>>(payload, _json) ?? [];
+    }
+
+    public async Task<CompanySettingsRow> GetCompanySettingsAsync(CancellationToken cancellationToken = default)
+    {
+        var payload = await SendAsync(HttpMethod.Get, RestUri("configurazione_azienda") + "?select=*&limit=1", null, cancellationToken);
+        return (JsonSerializer.Deserialize<List<CompanySettingsRow>>(payload, _json) ?? []).FirstOrDefault()
+            ?? new CompanySettingsRow { CompanyName = "Arte In Ferro Lascari" };
+    }
+
+    public async Task SaveCompanySettingsAsync(CompanySettingsRow company, CancellationToken cancellationToken = default)
+    {
+        await SendAsync(HttpMethod.Patch, RestUri("configurazione_azienda") + "?id=eq.true", new Dictionary<string, object?>
+        {
+            ["ragione_sociale"] = company.CompanyName.Trim(), ["partita_iva"] = EmptyToNull(company.VatNumber),
+            ["codice_fiscale"] = EmptyToNull(company.FiscalCode), ["indirizzo"] = EmptyToNull(company.Address),
+            ["comune"] = EmptyToNull(company.City), ["provincia"] = EmptyToNull(company.Province), ["cap"] = EmptyToNull(company.PostalCode),
+            ["email"] = EmptyToNull(company.Email), ["pec"] = EmptyToNull(company.Pec),
+            ["telefono_principale"] = EmptyToNull(company.Phone), ["sito_web"] = EmptyToNull(company.Website)
+        }, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CompanyContactRow>> GetCompanyContactsAsync(CancellationToken cancellationToken = default)
+    {
+        var payload = await SendAsync(HttpMethod.Get, RestUri("contatti_azienda") + "?select=*&attivo=eq.true&order=ordine", null, cancellationToken);
+        return JsonSerializer.Deserialize<List<CompanyContactRow>>(payload, _json) ?? [];
+    }
+
+    public async Task AddCompanyContactAsync(string name, string role, string? phone, string? email,
+        string type, bool visible, CancellationToken cancellationToken = default)
+    {
+        await SendAsync(HttpMethod.Post, RestUri("contatti_azienda"), new Dictionary<string, object?>
+        {
+            ["nome"] = name.Trim(), ["ruolo_reparto"] = role.Trim(), ["telefono"] = EmptyToNull(phone),
+            ["email"] = EmptyToNull(email), ["tipo"] = type, ["visibile_operatori"] = visible, ["attivo"] = true
+        }, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<FuelRow>> GetFuelEntriesAsync(CancellationToken cancellationToken = default)
+    {
+        const string select = "id,data_ora,km,litri,importo,distributore,dipendente:utenti!rifornimenti_dipendente_id_fkey(nome_cognome),mezzo:mezzi!rifornimenti_mezzo_id_fkey(targa,descrizione)";
+        var payload = await SendAsync(HttpMethod.Get, RestUri("rifornimenti") + $"?select={Uri.EscapeDataString(select)}&order=data_ora.desc", null, cancellationToken);
+        return JsonSerializer.Deserialize<List<FuelRow>>(payload, _json) ?? [];
+    }
+
+    public async Task<IReadOnlyList<AnomalyRow>> GetAnomaliesAsync(CancellationToken cancellationToken = default)
+    {
+        const string select = "id,tipo,stato,titolo,descrizione,luogo,created_at,dipendente:utenti!anomalie_segnalata_da_fkey(nome_cognome),mezzo:mezzi!anomalie_mezzo_id_fkey(targa,descrizione)";
+        var payload = await SendAsync(HttpMethod.Get, RestUri("anomalie") + $"?select={Uri.EscapeDataString(select)}&order=created_at.desc", null, cancellationToken);
+        return JsonSerializer.Deserialize<List<AnomalyRow>>(payload, _json) ?? [];
+    }
+
+    public async Task ResolveAnomalyAsync(string id, string note, CancellationToken cancellationToken = default)
+    {
+        await SendAsync(HttpMethod.Patch, RestUri("anomalie") + $"?id=eq.{Uri.EscapeDataString(id)}", new Dictionary<string, object?>
+        { ["stato"] = "risolta", ["nota_risoluzione"] = note.Trim(), ["risolta_da"] = _session.UserId, ["risolta_at"] = DateTime.UtcNow.ToString("O") }, cancellationToken);
+    }
+
+    public async Task AddCompanyCertificationAsync(string type, string title,
+        string? issuer, string? certificateNumber, DateTime? issueDate,
+        DateTime? expiryDate, string? documentUrl,
+        CancellationToken cancellationToken = default)
+    {
+        await SendAsync(HttpMethod.Post, RestUri("certificazioni_azienda"),
+            new Dictionary<string, object?>
+            {
+                ["categoria"] = type,
+                ["titolo"] = title.Trim(),
+                ["ente_rilascio"] = EmptyToNull(issuer),
+                ["numero_certificato"] = EmptyToNull(certificateNumber),
+                ["data_rilascio"] = issueDate?.ToString("yyyy-MM-dd"),
+                ["data_scadenza"] = expiryDate?.ToString("yyyy-MM-dd"),
+                ["documento_url"] = EmptyToNull(documentUrl),
+                ["attiva"] = true
+            }, cancellationToken);
     }
 
     public async Task<ReportRow> UpdateReportAsync(
@@ -245,5 +537,11 @@ public sealed class SupabaseApiService
     {
         [JsonPropertyName("signedURL")]
         public string SignedUrl { get; set; } = string.Empty;
+    }
+
+    private sealed class CreatedId
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = string.Empty;
     }
 }

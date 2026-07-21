@@ -56,6 +56,8 @@ public partial class DashboardViewModel : ObservableObject
 
     public string AdminName => _api.Session.FullName;
     public ObservableCollection<ReportRow> Reports { get; } = [];
+    public ObservableCollection<AttendanceRow> Attendance { get; } = [];
+    public ObservableCollection<DeadlineRow> Deadlines { get; } = [];
     public ObservableCollection<LookupItem> Employees { get; } = [];
     public ObservableCollection<LookupItem> Clients { get; } = [];
     public ObservableCollection<LookupItem> Statuses { get; } = [];
@@ -73,6 +75,8 @@ public partial class DashboardViewModel : ObservableObject
             var employees = await _api.GetEmployeesAsync();
             var clients = await _api.GetClientsAsync();
             var reports = await _api.GetReportsAsync();
+            var attendance = await _api.GetAttendanceAsync();
+            var deadlines = await _api.GetDeadlinesAsync();
 
             var employeeId = SelectedEmployee?.Id;
             var clientId = SelectedClient?.Id;
@@ -87,6 +91,10 @@ public partial class DashboardViewModel : ObservableObject
 
             _allReports.Clear();
             _allReports.AddRange(reports);
+            Attendance.Clear();
+            foreach (var row in attendance) Attendance.Add(row);
+            Deadlines.Clear();
+            foreach (var row in deadlines) Deadlines.Add(row);
             ApplyFilters();
         }
         catch (Exception ex) when (ex is ApiException or HttpRequestException or TaskCanceledException)
@@ -187,6 +195,23 @@ public partial class DashboardViewModel : ObservableObject
         {
             await _exports.ExportPdfAsync(path, SelectedReport);
             StatusMessage = $"PDF salvato in {path}";
+        });
+    }
+
+    [RelayCommand]
+    private async Task ExportAttendanceAsync()
+    {
+        if (Attendance.Count == 0)
+        {
+            StatusMessage = "Non ci sono presenze da esportare.";
+            return;
+        }
+        var path = _filePicker.PickAttendanceExcelPath();
+        if (path is null) return;
+        await RunBusyAsync(async () =>
+        {
+            await _exports.ExportAttendanceExcelAsync(path, Attendance.ToList());
+            StatusMessage = $"Presenze e straordinari salvati in {path}";
         });
     }
 

@@ -42,7 +42,7 @@ def configure_android(root: Path) -> None:
         node.insert(len(permissions), feature)
     application = node.find("application")
     if application is not None:
-        application.set(f"{{{ANDROID_NS}}}label", "Rapportini Arte in Ferro")
+        application.set(f"{{{ANDROID_NS}}}label", "Arte In Ferro Lascari")
     tree.write(manifest, encoding="utf-8", xml_declaration=True)
 
 
@@ -52,7 +52,7 @@ def configure_ios(root: Path) -> None:
         raise FileNotFoundError(f"Info.plist iOS non trovato: {info}")
     with info.open("rb") as stream:
         values = plistlib.load(stream)
-    values["CFBundleDisplayName"] = "Rapportini Arte in Ferro"
+    values["CFBundleDisplayName"] = "Arte In Ferro Lascari"
     values["NSCameraUsageDescription"] = (
         "La fotocamera serve per documentare il lavoro svolto in cantiere."
     )

@@ -87,6 +87,44 @@ public sealed class ExportService
         await Task.Run(() => BuildPdf(report, media).GeneratePdf(path), cancellationToken);
     }
 
+    public Task ExportAttendanceExcelAsync(
+        string path,
+        IReadOnlyList<AttendanceRow> rows,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var workbook = new XLWorkbook();
+            var sheet = workbook.Worksheets.Add("Presenze");
+            var headers = new[] { "Data", "Dipendente", "Entrata", "Uscita", "Ore", "Straordinario" };
+            for (var column = 0; column < headers.Length; column++)
+                sheet.Cell(1, column + 1).Value = headers[column];
+            var rowIndex = 2;
+            foreach (var row in rows.OrderBy(x => x.Day).ThenBy(x => x.EmployeeName))
+            {
+                sheet.Cell(rowIndex, 1).Value = row.Day;
+                sheet.Cell(rowIndex, 2).Value = row.EmployeeName;
+                if (row.FirstEntry is not null) sheet.Cell(rowIndex, 3).Value = row.FirstEntry.Value.LocalDateTime;
+                if (row.LastExit is not null) sheet.Cell(rowIndex, 4).Value = row.LastExit.Value.LocalDateTime;
+                if (row.TotalHours is not null) sheet.Cell(rowIndex, 5).Value = row.TotalHours.Value;
+                if (row.OvertimeHours is not null) sheet.Cell(rowIndex, 6).Value = row.OvertimeHours.Value;
+                rowIndex++;
+            }
+            var range = sheet.Range(1, 1, Math.Max(1, rowIndex - 1), headers.Length);
+            range.CreateTable("TabellaPresenze");
+            sheet.Range(1, 1, 1, headers.Length).Style.Fill.BackgroundColor = XLColor.FromHtml(IronBlue);
+            sheet.Range(1, 1, 1, headers.Length).Style.Font.FontColor = XLColor.White;
+            sheet.Range(1, 1, 1, headers.Length).Style.Font.Bold = true;
+            sheet.Column(1).Style.DateFormat.Format = "dd/mm/yyyy";
+            sheet.Columns(3, 4).Style.DateFormat.Format = "hh:mm";
+            sheet.Columns(5, 6).Style.NumberFormat.Format = "0.00";
+            sheet.Columns().AdjustToContents();
+            sheet.SheetView.FreezeRows(1);
+            workbook.SaveAs(path);
+        }, cancellationToken);
+    }
+
     private static IDocument BuildPdf(ReportRow report, ReportMedia media)
     {
         return Document.Create(document =>

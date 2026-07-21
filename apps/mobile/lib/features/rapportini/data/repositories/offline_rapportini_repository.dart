@@ -150,6 +150,7 @@ class OfflineRapportiniRepository implements RapportiniRepository {
         remote['cliente_id'] == local.clienteId &&
         remote['luogo'] == local.luogo &&
         remote['rif_appuntamento'] == local.rifAppuntamento &&
+        remote['mezzo_id'] == local.mezzoId &&
         remote['targa_mezzo'] == local.targaMezzo &&
         remote['km_mezzo'] == local.kmMezzo &&
         remote['tipologia_intervento'] == local.tipologia.databaseValue &&
@@ -171,6 +172,7 @@ class OfflineRapportiniRepository implements RapportiniRepository {
     current = current.copyWith(
       versioneRemota: draftJson['versione'] as int? ?? 1,
     );
+    await _remote.saveCollaborators(current);
 
     if (current.firmaLocalePath != null && current.firmaRemotePath == null) {
       final remotePath = await _remote.uploadSignature(current);
@@ -235,8 +237,12 @@ class OfflineRapportiniRepository implements RapportiniRepository {
       clienteNome: clienteNome,
       luogo: json['luogo'] as String,
       rifAppuntamento: json['rif_appuntamento'] as String?,
+      mezzoId: json['mezzo_id'] as String?,
       targaMezzo: json['targa_mezzo'] as String?,
       kmMezzo: json['km_mezzo'] as int?,
+      collaboratoriIds: ((json['rapportino_collaboratori'] as List?) ?? const [])
+          .map((item) => (item as Map<String, dynamic>)['dipendente_id'] as String)
+          .toList(),
       tipologia: TipoIntervento.fromDatabase(
         json['tipologia_intervento'] as String,
       ),

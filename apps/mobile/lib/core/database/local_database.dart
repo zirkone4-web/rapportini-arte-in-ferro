@@ -12,7 +12,7 @@ class LocalDatabase {
     final root = await getDatabasesPath();
     _database = await openDatabase(
       p.join(root, 'arte_in_ferro_rapportini.db'),
-      version: 3,
+      version: 4,
       onConfigure: (database) => database.execute('PRAGMA foreign_keys = ON'),
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -48,8 +48,10 @@ class LocalDatabase {
         cliente_nome TEXT NOT NULL,
         luogo TEXT NOT NULL,
         rif_appuntamento TEXT,
+        mezzo_id TEXT,
         targa_mezzo TEXT,
         km_mezzo INTEGER,
+        collaboratori_ids TEXT NOT NULL DEFAULT '[]',
         tipologia TEXT NOT NULL,
         data_ora_inizio TEXT NOT NULL,
         data_ora_fine TEXT,
@@ -118,6 +120,12 @@ class LocalDatabase {
     if (oldVersion < 3) {
       await database.execute('ALTER TABLE rapportini ADD COLUMN targa_mezzo TEXT');
       await database.execute('ALTER TABLE rapportini ADD COLUMN km_mezzo INTEGER');
+    }
+    if (oldVersion < 4) {
+      await database.execute('ALTER TABLE rapportini ADD COLUMN mezzo_id TEXT');
+      await database.execute(
+        "ALTER TABLE rapportini ADD COLUMN collaboratori_ids TEXT NOT NULL DEFAULT '[]'",
+      );
     }
   }
 

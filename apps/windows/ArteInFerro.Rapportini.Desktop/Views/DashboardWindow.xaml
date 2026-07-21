@@ -1,7 +1,7 @@
 <Window x:Class="ArteInFerro.Rapportini.Desktop.Views.DashboardWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Arte in Ferro · Rapportini"
+        Title="Arte In Ferro Lascari · Management"
         Width="1500" Height="900" MinWidth="1100" MinHeight="680"
         WindowStartupLocation="CenterScreen" Background="#F1F5F9">
     <Window.Resources>
@@ -31,7 +31,7 @@
                     <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="ARTE IN FERRO" Foreground="White"
                                    FontSize="20" FontWeight="Bold" />
-                        <TextBlock Text="Dashboard rapportini" Foreground="#D8E7F5" />
+                        <TextBlock Text="Piattaforma Management" Foreground="#D8E7F5" />
                     </StackPanel>
                 </StackPanel>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -85,7 +85,25 @@
             </Grid>
         </Border>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="16,0,16,8">
+        <WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="16,0,16,8">
+            <Button Content="Azienda e contatti" Click="CompanySettingsClick" Background="#E2E8F0" FontWeight="SemiBold" />
+            <Button Content="Nuovo dipendente" Click="NewEmployeeClick"
+                    Background="#DBEAFE" FontWeight="SemiBold" />
+            <Button Content="Dipendenti e accessi" Click="EmployeeAccessClick"
+                    Background="#DBEAFE" FontWeight="SemiBold" />
+            <Button Content="Presenze e straordinari" Click="AttendanceClick"
+                    Background="#DCFCE7" FontWeight="SemiBold" />
+            <Button Content="Corsi, patentini e visite" Click="EmployeeDocumentsClick"
+                    Background="#EDE9FE" FontWeight="SemiBold" />
+            <Button Content="Comunicazioni" Click="CommunicationsClick"
+                    Background="#FFEDD5" FontWeight="SemiBold" />
+            <Button Content="Mezzi e assicurazioni" Click="FleetClick"
+                    Background="#E0F2FE" FontWeight="SemiBold" />
+            <Button Content="Carburante e anomalie" Click="OperationsClick" Background="#FEE2E2" FontWeight="SemiBold" />
+            <Button Content="Scadenziario" Click="DeadlinesClick"
+                    Background="#FEF3C7" FontWeight="SemiBold" />
+            <Button Content="Certificazioni azienda" Click="CompanyCertificationsClick"
+                    Background="#FCE7F3" FontWeight="SemiBold" />
             <Button Content="Aggiorna" Command="{Binding LoadCommand}" />
             <Button Content="Apri / modifica / approva" Command="{Binding EditCommand}"
                     Background="#DCFCE7" />
@@ -95,7 +113,7 @@
             <ProgressBar IsIndeterminate="True" Width="130" Height="5" Margin="16,0"
                          VerticalAlignment="Center"
                          Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
-        </StackPanel>
+        </WrapPanel>
 
         <Border Grid.Row="3" Background="White" Margin="16,0" CornerRadius="12" Padding="4">
             <DataGrid ItemsSource="{Binding Reports}"

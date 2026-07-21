@@ -44,7 +44,7 @@ class RapportiniApp extends StatelessWidget {
           watchAuthState: WatchAuthState(authRepository),
         )..add(const AuthSubscriptionRequested()),
         child: MaterialApp(
-          title: 'Rapportini Arte in Ferro',
+          title: 'Arte In Ferro Lascari App',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,
           home: const _AuthGate(),

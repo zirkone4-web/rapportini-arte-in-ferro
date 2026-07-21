@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:arte_in_ferro_rapportini/core/errors/app_exception.dart';
 import 'package:arte_in_ferro_rapportini/core/gps/location_service.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/domain/entities/app_user.dart';
+import 'package:arte_in_ferro_rapportini/features/company/data/company_service.dart';
 import 'package:arte_in_ferro_rapportini/features/rapportini/domain/entities/cliente.dart';
 import 'package:arte_in_ferro_rapportini/features/rapportini/domain/entities/rapportino.dart';
 import 'package:arte_in_ferro_rapportini/features/rapportini/presentation/cubit/rapportini_cubit.dart';
@@ -12,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:signature/signature.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 class RapportinoFormPage extends StatefulWidget {
@@ -41,6 +43,11 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
   late DateTime _inizio;
   DateTime? _fine;
   String? _clienteId;
+  String? _mezzoId;
+  List<String> _collaboratoriIds = [];
+  List<Map<String, dynamic>> _mezzi = [];
+  List<Map<String, dynamic>> _dipendenti = [];
+  bool _loadingCompanyData = true;
   late TipoIntervento _tipologia;
   List<RapportinoFoto> _foto = [];
   String? _firmaPath;
@@ -64,8 +71,11 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
     _fine = report?.dataOraFine?.toLocal() ??
         DateTime.now().add(const Duration(hours: 1));
     _clienteId = report?.clienteId;
+    _mezzoId = report?.mezzoId;
+    _collaboratoriIds = [...?report?.collaboratoriIds];
     _tipologia = report?.tipologia ?? TipoIntervento.montaggioPosa;
     _firmaPath = report?.firmaLocalePath;
+    _loadCompanyData();
 
     if (report != null) {
       context.read<RapportiniCubit>().loadFoto(report.id).then((value) {
@@ -188,14 +198,47 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _targaController,
-                      enabled: !_busy,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(
-                        labelText: 'Targa mezzo',
-                        prefixIcon: Icon(Icons.local_shipping_outlined),
+                    DropdownButtonFormField<String?>(
+                      initialValue: _mezzoId,
+                      decoration: InputDecoration(
+                        labelText: 'Mezzo utilizzato',
+                        prefixIcon:
+                            const Icon(Icons.local_shipping_outlined),
+                        helperText: _loadingCompanyData
+                            ? 'Caricamento mezzi…'
+                            : 'Seleziona un mezzo registrato in azienda',
                       ),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('Nessun mezzo'),
+                        ),
+                        ..._mezzi.map(
+                          (mezzo) => DropdownMenuItem<String?>(
+                            value: mezzo['id'] as String,
+                            child: Text(
+                              _vehicleLabel(mezzo),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: _busy || _loadingCompanyData
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _mezzoId = value;
+                                Map<String, dynamic>? selected;
+                                for (final item in _mezzi) {
+                                  if (item['id'] == value) {
+                                    selected = item;
+                                    break;
+                                  }
+                                }
+                                _targaController.text =
+                                    selected?['targa']?.toString() ?? '';
+                              });
+                            },
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -215,6 +258,41 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
                             : null;
                       },
                     ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Collaboratori presenti in cantiere',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    if (_loadingCompanyData)
+                      const LinearProgressIndicator()
+                    else if (_availableCollaborators.isEmpty)
+                      const Text('Nessun altro collaboratore disponibile.')
+                    else
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: _availableCollaborators.map((employee) {
+                          final id = employee['id'] as String;
+                          return FilterChip(
+                            label: Text(
+                              employee['nome_cognome']?.toString() ??
+                                  employee['email']?.toString() ??
+                                  'Collaboratore',
+                            ),
+                            selected: _collaboratoriIds.contains(id),
+                            onSelected: _busy
+                                ? null
+                                : (selected) => setState(() {
+                                      if (selected) {
+                                        _collaboratoriIds.add(id);
+                                      } else {
+                                        _collaboratoriIds.remove(id);
+                                      }
+                                    }),
+                          );
+                        }).toList(growable: false),
+                      ),
                     const SizedBox(height: 24),
                     const _SectionTitle(number: 2, title: 'Data e orari'),
                     _DateTimeField(
@@ -550,8 +628,10 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
         clienteNome: cliente.ragioneSociale,
         luogo: _luogoController.text.trim(),
         rifAppuntamento: _emptyToNull(_riferimentoController.text),
+        mezzoId: _mezzoId,
         targaMezzo: _emptyToNull(_targaController.text)?.toUpperCase(),
         kmMezzo: int.tryParse(_kmController.text.trim()),
+        collaboratoriIds: _collaboratoriIds,
         tipologia: _tipologia,
         dataOraInizio: _inizio,
         dataOraFine: _fine,
@@ -580,6 +660,45 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
 
   Cliente _findCliente(RapportiniState state, String id) {
     return state.clienti.firstWhere((item) => item.id == id);
+  }
+
+  List<Map<String, dynamic>> get _availableCollaborators => _dipendenti
+      .where((employee) => employee['id'] != widget.user.id)
+      .toList(growable: false);
+
+  Future<void> _loadCompanyData() async {
+    try {
+      final service = CompanyService(Supabase.instance.client);
+      final results = await Future.wait([
+        service.loadVehicles(),
+        service.loadEmployees(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _mezzi = results[0];
+        _dipendenti = results[1];
+        _loadingCompanyData = false;
+      });
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() => _loadingCompanyData = false);
+      _showError(
+        AppException(
+          'Non riesco a caricare mezzi e collaboratori: $error',
+        ),
+      );
+    }
+  }
+
+  String _vehicleLabel(Map<String, dynamic> vehicle) {
+    final plate = vehicle['targa']?.toString() ?? '';
+    final description = vehicle['descrizione']?.toString() ?? '';
+    final model = [vehicle['marca'], vehicle['modello']]
+        .where((part) => part != null && part.toString().trim().isNotEmpty)
+        .join(' ');
+    return [plate, description, model]
+        .where((part) => part.trim().isNotEmpty)
+        .join(' · ');
   }
 
   Future<void> _pickDateTime({required bool isStart}) async {
