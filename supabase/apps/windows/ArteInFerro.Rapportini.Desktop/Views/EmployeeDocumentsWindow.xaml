@@ -1,0 +1,67 @@
+<Window x:Class="ArteInFerro.Rapportini.Desktop.Views.EmployeeDocumentsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Formazione, patentini e visite · Arte In Ferro"
+        Width="1450" Height="820" MinWidth="1150" MinHeight="700"
+        WindowStartupLocation="CenterOwner" Background="#F1F5F9">
+    <Grid Margin="18">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="430" />
+            <ColumnDefinition Width="14" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Border Grid.Column="0" Background="White" CornerRadius="12" Padding="20">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="Nuovo documento dipendente" FontSize="22" FontWeight="Bold" />
+                    <TextBlock Text="Il dipendente potrà consultarlo dall’app senza modificarlo."
+                               Foreground="#475569" TextWrapping="Wrap" Margin="0,5,0,16" />
+                    <TextBlock Text="Dipendente *" FontWeight="SemiBold" />
+                    <ComboBox ItemsSource="{Binding Employees}" SelectedItem="{Binding SelectedEmployee}" />
+                    <TextBlock Text="Categoria *" FontWeight="SemiBold" Margin="0,10,0,0" />
+                    <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" />
+                    <TextBlock Text="Titolo *" FontWeight="SemiBold" Margin="0,10,0,0" />
+                    <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Text="Ente / medico / formatore" FontWeight="SemiBold" Margin="0,10,0,0" />
+                    <TextBox Text="{Binding Issuer}" />
+                    <TextBlock Text="Numero attestato" FontWeight="SemiBold" Margin="0,10,0,0" />
+                    <TextBox Text="{Binding DocumentNumber}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <StackPanel Width="185">
+                            <TextBlock Text="Rilascio" FontWeight="SemiBold" />
+                            <DatePicker SelectedDate="{Binding IssueDate}" />
+                        </StackPanel>
+                        <StackPanel Width="185" Margin="12,0,0,0">
+                            <TextBlock Text="Scadenza" FontWeight="SemiBold" />
+                            <DatePicker SelectedDate="{Binding ExpiryDate}" />
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock Text="Idoneità / prescrizioni visibili" FontWeight="SemiBold" Margin="0,10,0,0" />
+                    <TextBox Text="{Binding Fitness}" />
+                    <TextBlock Text="Collegamento documento" FontWeight="SemiBold" Margin="0,10,0,0" />
+                    <TextBox Text="{Binding DocumentUrl}" />
+                    <CheckBox Content="Visibile al dipendente nell’app"
+                              IsChecked="{Binding VisibleToEmployee}" Margin="0,14,0,0" />
+                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,14,0,10" />
+                    <Button Content="SALVA DOCUMENTO" Command="{Binding SaveCommand}"
+                            Background="{StaticResource IronBlue}" Foreground="White"
+                            FontWeight="Bold" Height="44" />
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+        <Border Grid.Column="2" Background="White" CornerRadius="12" Padding="8">
+            <DataGrid ItemsSource="{Binding Documents}" AutoGenerateColumns="False"
+                      IsReadOnly="True" RowHeight="38" CanUserSortColumns="True">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Dipendente" Binding="{Binding EmployeeName}" Width="190" />
+                    <DataGridTextColumn Header="Categoria" Binding="{Binding Category}" Width="140" />
+                    <DataGridTextColumn Header="Titolo" Binding="{Binding Title}" Width="*" />
+                    <DataGridTextColumn Header="Ente" Binding="{Binding Issuer}" Width="170" />
+                    <DataGridTextColumn Header="Rilascio" Binding="{Binding IssueDate, StringFormat=dd/MM/yyyy}" Width="110" />
+                    <DataGridTextColumn Header="Scadenza" Binding="{Binding ExpiryDate, StringFormat=dd/MM/yyyy}" Width="110" />
+                    <DataGridCheckBoxColumn Header="In app" Binding="{Binding VisibleToEmployee}" Width="70" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </Grid>
+</Window>

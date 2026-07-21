@@ -1,0 +1,61 @@
+<Window x:Class="ArteInFerro.Rapportini.Desktop.Views.FleetWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Mezzi, assicurazioni e manutenzioni · Arte In Ferro"
+        Width="1350" Height="820" WindowStartupLocation="CenterOwner" Background="#F1F5F9">
+    <TabControl Margin="18">
+        <TabItem Header="ANAGRAFICA MEZZI">
+            <Grid Margin="12">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="390"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Border Background="White" Padding="20" CornerRadius="12">
+                    <StackPanel>
+                        <TextBlock Text="Nuovo mezzo" FontSize="22" FontWeight="Bold" />
+                        <TextBlock Text="Targa *" FontWeight="SemiBold" Margin="0,14,0,0"/><TextBox Text="{Binding Plate}"/>
+                        <TextBlock Text="Descrizione *" FontWeight="SemiBold" Margin="0,10,0,0"/><TextBox Text="{Binding Description}"/>
+                        <TextBlock Text="Marca" FontWeight="SemiBold" Margin="0,10,0,0"/><TextBox Text="{Binding Brand}"/>
+                        <TextBlock Text="Modello" FontWeight="SemiBold" Margin="0,10,0,0"/><TextBox Text="{Binding Model}"/>
+                        <TextBlock Text="Chilometri attuali" FontWeight="SemiBold" Margin="0,10,0,0"/><TextBox Text="{Binding CurrentKm}"/>
+                        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,16,0,10"/>
+                        <Button Content="AGGIUNGI MEZZO" Command="{Binding AddVehicleCommand}" Background="{StaticResource IronBlue}" Foreground="White" Height="44"/>
+                    </StackPanel>
+                </Border>
+                <DataGrid Grid.Column="2" ItemsSource="{Binding Vehicles}" AutoGenerateColumns="False" IsReadOnly="True" Background="White">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Targa" Binding="{Binding Plate}" Width="120"/>
+                        <DataGridTextColumn Header="Descrizione" Binding="{Binding Description}" Width="*"/>
+                        <DataGridTextColumn Header="Marca" Binding="{Binding Brand}" Width="150"/>
+                        <DataGridTextColumn Header="Modello" Binding="{Binding Model}" Width="150"/>
+                        <DataGridTextColumn Header="Km" Binding="{Binding CurrentKm, StringFormat=N0}" Width="110"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </TabItem>
+        <TabItem Header="ASSICURAZIONI E SCADENZE">
+            <Grid Margin="12">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="410"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Border Background="White" Padding="20" CornerRadius="12">
+                    <StackPanel>
+                        <TextBlock Text="Nuova scadenza mezzo" FontSize="22" FontWeight="Bold" />
+                        <TextBlock Text="Mezzo *" FontWeight="SemiBold" Margin="0,14,0,0"/><ComboBox ItemsSource="{Binding Vehicles}" SelectedItem="{Binding SelectedVehicle}" DisplayMemberPath="DisplayName"/>
+                        <TextBlock Text="Tipo *" FontWeight="SemiBold" Margin="0,10,0,0"/><ComboBox ItemsSource="{Binding DeadlineTypes}" SelectedItem="{Binding SelectedDeadlineType}"/>
+                        <TextBlock Text="Descrizione *" FontWeight="SemiBold" Margin="0,10,0,0"/><TextBox Text="{Binding DeadlineDescription}"/>
+                        <TextBlock Text="Compagnia / ente / officina" FontWeight="SemiBold" Margin="0,10,0,0"/><TextBox Text="{Binding Provider}"/>
+                        <TextBlock Text="Numero polizza / documento" FontWeight="SemiBold" Margin="0,10,0,0"/><TextBox Text="{Binding DocumentNumber}"/>
+                        <TextBlock Text="Scadenza *" FontWeight="SemiBold" Margin="0,10,0,0"/><DatePicker SelectedDate="{Binding ExpiryDate}"/>
+                        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,16,0,10"/>
+                        <Button Content="SALVA SCADENZA" Command="{Binding AddDeadlineCommand}" Background="{StaticResource IronBlue}" Foreground="White" Height="44"/>
+                    </StackPanel>
+                </Border>
+                <DataGrid Grid.Column="2" ItemsSource="{Binding Deadlines}" AutoGenerateColumns="False" IsReadOnly="True" Background="White">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Mezzo" Binding="{Binding VehicleName}" Width="220"/>
+                        <DataGridTextColumn Header="Tipo" Binding="{Binding Type}" Width="130"/>
+                        <DataGridTextColumn Header="Descrizione" Binding="{Binding Description}" Width="*"/>
+                        <DataGridTextColumn Header="Ente" Binding="{Binding Provider}" Width="170"/>
+                        <DataGridTextColumn Header="Scadenza" Binding="{Binding ExpiryDate, StringFormat=dd/MM/yyyy}" Width="120"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </TabItem>
+    </TabControl>
+</Window>
