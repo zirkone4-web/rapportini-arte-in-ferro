@@ -1,6 +1,8 @@
 import 'package:arte_in_ferro_rapportini/core/gps/location_service.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/domain/entities/app_user.dart';
 import 'package:arte_in_ferro_rapportini/features/company/data/company_service.dart';
+import 'package:arte_in_ferro_rapportini/features/company/presentation/client_details_page.dart';
+import 'package:arte_in_ferro_rapportini/features/rapportini/presentation/pages/rapportini_page.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
@@ -645,15 +647,23 @@ class _CommunicationsPageState extends State<CommunicationsPage> {
   Future<void> _open(Map<String, dynamic> row) async {
     final message = Map<String, dynamic>.from(row['comunicazioni'] as Map);
     final confirm = message['richiede_conferma'] == true;
-    await showDialog<void>(
+    final type = '${message['tipo'] ?? 'generica'}';
+    final hasAction = (type == 'cliente' && message['cliente_id'] != null) ||
+        (type == 'rapportino' && message['rapportino_id'] != null);
+    final openLinked = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('${message['titolo']}'),
         content: SingleChildScrollView(child: Text('${message['messaggio']}')),
         actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(hasAction ? 'CHIUDI' : (confirm ? 'HO LETTO E CONFERMO' : 'HO LETTO')),
+          ),
+          if (hasAction)
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(confirm ? 'HO LETTO E CONFERMO' : 'HO LETTO'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(type == 'cliente' ? 'APRI SCHEDA CLIENTE' : 'APRI RAPPORTINO'),
           ),
         ],
       ),
@@ -665,6 +675,20 @@ class _CommunicationsPageState extends State<CommunicationsPage> {
     );
     if (mounted) {
       setState(() => _future = _service().loadCommunications(widget.user.id));
+      if (openLinked == true) {
+        if (type == 'cliente') {
+          await Navigator.of(context).push<void>(MaterialPageRoute(
+            builder: (_) => ClientDetailsPage(clientId: '${message['cliente_id']}'),
+          ));
+        } else if (type == 'rapportino') {
+          await Navigator.of(context).push<void>(MaterialPageRoute(
+            builder: (_) => RapportiniPage(
+              user: widget.user,
+              initialReportId: '${message['rapportino_id']}',
+            ),
+          ));
+        }
+      }
     }
   }
 

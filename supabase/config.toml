@@ -1,2 +1,5 @@
 [functions.gestione-dipendenti]
 verify_jwt = true
+
+[functions.notifiche-push]
+verify_jwt = true

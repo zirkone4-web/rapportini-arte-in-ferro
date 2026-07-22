@@ -3,6 +3,7 @@ import 'package:arte_in_ferro_rapportini/core/config/app_config.dart';
 import 'package:arte_in_ferro_rapportini/core/database/local_database.dart';
 import 'package:arte_in_ferro_rapportini/core/gps/location_service.dart';
 import 'package:arte_in_ferro_rapportini/core/media/media_service.dart';
+import 'package:arte_in_ferro_rapportini/core/notifications/push_notification_service.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/data/repositories/supabase_auth_repository.dart';
 import 'package:arte_in_ferro_rapportini/features/rapportini/data/datasources/rapportini_remote_data_source.dart';
@@ -20,6 +21,7 @@ Future<void> bootstrap() async {
       url: config.supabaseUrl,
       publishableKey: config.supabasePublishableKey,
     );
+    await PushNotificationService.initialize(config);
 
     final localDatabase = LocalDatabase();
     await localDatabase.initialize();
