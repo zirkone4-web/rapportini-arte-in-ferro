@@ -7,7 +7,8 @@ on:
     paths:
       - "apps/**"
       - "tools/**"
-      - ".github/workflows/build-installers.yml"
+      - "supabase/**"
+      - ".github/workflows/build-installers-corretto.yml"
 
 permissions:
   contents: read
@@ -15,6 +16,7 @@ permissions:
 jobs:
   iphone-web:
     name: App iPhone PWA
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -60,17 +62,27 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           test -n "$KEYSTORE_BASE64"
-          python3 -c 'import os, pathlib; pathlib.Path("android/app/arte-in-ferro-upload.jks").write_bytes(bytes.fromhex(os.environ["KEYSTORE_BASE64"]))'
+          python3 -c 'import base64, os, pathlib, string; raw=os.environ["KEYSTORE_BASE64"].strip(); is_hex=len(raw)%2==0 and all(c in string.hexdigits for c in raw); data=bytes.fromhex(raw) if is_hex else base64.b64decode(raw); pathlib.Path("android/app/arte-in-ferro-upload.jks").write_bytes(data)'
           printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=arte-in-ferro-upload.jks\n' \
             "$KEYSTORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" > android/key.properties
       - name: Analisi
         run: flutter analyze --no-fatal-infos
       - name: Test
         run: flutter test
+      - name: Prepara configurazione release
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+        run: |
+          python3 -c 'import json, os, pathlib; keys=("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "FIREBASE_PROJECT_ID", "FIREBASE_APP_ID", "FIREBASE_API_KEY", "FIREBASE_MESSAGING_SENDER_ID"); values={key: os.environ[key] for key in keys if os.environ.get(key)}; pathlib.Path("build-defines.json").write_text(json.dumps(values), encoding="utf-8")'
       - name: Crea APK release
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define-from-file=build-defines.json
       - name: Crea Android App Bundle Play Store
-        run: flutter build appbundle --release
+        run: flutter build appbundle --release --dart-define-from-file=build-defines.json
       - uses: actions/upload-artifact@v4
         with:
           name: rapportini-android-apk
