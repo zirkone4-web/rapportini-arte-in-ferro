@@ -144,11 +144,29 @@ class CompanyService {
         .select(
           'comunicazione_id,letta_at,confermata_at,'
           'comunicazioni(id,titolo,messaggio,priorita,allegato_url,'
-          'richiede_conferma,pubblicata_at,scade_at)',
+          'richiede_conferma,pubblicata_at,scade_at,tipo,cliente_id,rapportino_id)',
         )
         .eq('dipendente_id', employeeId)
         .order('comunicazione_id', ascending: false);
-    return List<Map<String, dynamic>>.from(rows);
+    final result = List<Map<String, dynamic>>.from(rows);
+    result.sort((left, right) {
+      final leftMessage = Map<String, dynamic>.from(left['comunicazioni'] as Map);
+      final rightMessage = Map<String, dynamic>.from(right['comunicazioni'] as Map);
+      final leftDate = DateTime.tryParse('${leftMessage['pubblicata_at']}');
+      final rightDate = DateTime.tryParse('${rightMessage['pubblicata_at']}');
+      return (rightDate ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .compareTo(leftDate ?? DateTime.fromMillisecondsSinceEpoch(0));
+    });
+    return result;
+  }
+
+  Future<Map<String, dynamic>?> loadClient(String clientId) async {
+    final rows = await _client
+        .from('clienti')
+        .select('id,ragione_sociale,indirizzo,referente,telefono')
+        .eq('id', clientId)
+        .limit(1);
+    return rows.isEmpty ? null : Map<String, dynamic>.from(rows.first);
   }
 
   Future<void> markCommunication({

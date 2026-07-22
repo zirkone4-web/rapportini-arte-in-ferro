@@ -1,0 +1,9 @@
+AGGIORNAMENTO GITHUB COMPLETO 0.6.0
+
+Contiene Android 0.4.0+4, PWA iPhone 0.6.0, workflow di compilazione,
+funzione notifiche e file Supabase.
+
+Usare GitHub Desktop per mantenere i percorsi delle cartelle.
+Creare un nuovo branch da main chiamato agent/versione-0.6.0-corretto,
+quindi copiare nella cartella locale del repository le cartelle:
+.github, apps, supabase e tools.
