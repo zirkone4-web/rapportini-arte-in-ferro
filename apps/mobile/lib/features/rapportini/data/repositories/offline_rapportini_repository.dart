@@ -44,9 +44,6 @@ class OfflineRapportiniRepository implements RapportiniRepository {
 
   @override
   Future<Cliente> createCliente(Cliente cliente) async {
-    if (!await _hasConnection()) {
-      throw StateError('Per creare un nuovo cliente serve la connessione internet.');
-    }
     final created = await _remote.createCliente(cliente);
     await _database.replaceClienti([created]);
     return created;
