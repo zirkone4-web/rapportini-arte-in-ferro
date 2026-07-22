@@ -62,7 +62,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           test -n "$KEYSTORE_BASE64"
-          python3 -c 'import base64, os, pathlib; pathlib.Path("android/app/arte-in-ferro-upload.jks").write_bytes(base64.b64decode(os.environ["KEYSTORE_BASE64"]))'
+          python3 -c 'import base64, os, pathlib, string; raw=os.environ["KEYSTORE_BASE64"].strip(); is_hex=len(raw)%2==0 and all(c in string.hexdigits for c in raw); data=bytes.fromhex(raw) if is_hex else base64.b64decode(raw); pathlib.Path("android/app/arte-in-ferro-upload.jks").write_bytes(data)'
           printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=arte-in-ferro-upload.jks\n' \
             "$KEYSTORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" > android/key.properties
       - name: Analisi
