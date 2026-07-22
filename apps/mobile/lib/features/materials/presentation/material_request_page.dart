@@ -63,7 +63,7 @@ class _MaterialRequestPageState extends State<MaterialRequestPage> {
                       final parsed = double.tryParse((value ?? '').replaceAll(',', '.'));
                       return parsed == null || parsed <= 0 ? 'Quantità non valida' : null;
                     },
-                  ))),
+                  )),
                   const SizedBox(width: 10),
                   Expanded(child: TextFormField(controller: unit, decoration: const InputDecoration(labelText: 'Unità *'))),
                 ]),
@@ -150,7 +150,7 @@ class _MaterialRequestPageState extends State<MaterialRequestPage> {
                     title: Text(entry.$2.description),
                     subtitle: Text('${entry.$2.quantity.toStringAsFixed(entry.$2.quantity % 1 == 0 ? 0 : 2)} ${entry.$2.unit}${entry.$2.notes == null ? '' : ' · ${entry.$2.notes}'}'),
                     trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: _saving ? null : () => setState(() => _items.removeAt(entry.$1))),
-                  )),
+                  ))),
             OutlinedButton.icon(onPressed: _saving ? null : _addItem, icon: const Icon(Icons.add), label: const Text('AGGIUNGI MATERIALE')),
             const SizedBox(height: 14),
             TextField(controller: _notes, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Note generali', alignLabelWithHint: true)),
