@@ -63,7 +63,7 @@ class _MaterialRequestPageState extends State<MaterialRequestPage> {
                       final parsed = double.tryParse((value ?? '').replaceAll(',', '.'));
                       return parsed == null || parsed <= 0 ? 'Quantità non valida' : null;
                     },
-                  )),
+                  ))),
                   const SizedBox(width: 10),
                   Expanded(child: TextFormField(controller: unit, decoration: const InputDecoration(labelText: 'Unità *'))),
                 ]),
