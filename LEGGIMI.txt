@@ -1,0 +1,5 @@
+CORREZIONE BUILD 0.6.0
+
+Sostituisce un file Android e il workflow GitHub.
+Copiare .github e apps nel repository locale mantenendo il branch
+agent/versione-0.6.0-corretto, quindi commit e push.

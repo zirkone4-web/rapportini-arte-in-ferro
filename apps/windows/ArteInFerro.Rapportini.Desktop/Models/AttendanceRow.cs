@@ -11,4 +11,15 @@ public sealed class AttendanceRow
     [JsonPropertyName("ultima_uscita")] public DateTimeOffset? LastExit { get; set; }
     [JsonPropertyName("ore_totali")] public decimal? TotalHours { get; set; }
     [JsonPropertyName("ore_straordinarie")] public decimal? OvertimeHours { get; set; }
+    [JsonPropertyName("stato_ore")] public string HoursStatus { get; set; } = "da_autorizzare";
+    [JsonPropertyName("ore_autorizzate")] public decimal? AuthorizedHours { get; set; }
+    [JsonPropertyName("nota_amministratore")] public string? AdminNote { get; set; }
+    [JsonPropertyName("contiene_trasferta_da_verificare")] public bool HasPendingTransfer { get; set; }
+    [JsonPropertyName("contiene_timbratura_rifiutata")] public bool HasRejectedAttendance { get; set; }
+    public string HoursStatusLabel => HoursStatus switch
+    {
+        "autorizzata" => "Autorizzata",
+        "rifiutata" => "Rifiutata",
+        _ => "Da autorizzare"
+    };
 }

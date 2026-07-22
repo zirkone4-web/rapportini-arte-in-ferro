@@ -57,6 +57,23 @@ enum StatoSincronizzazione {
   }
 }
 
+enum EsitoLavoro {
+  daEseguire('da_eseguire', 'Da eseguire'),
+  completato('completato', 'Completato'),
+  daCompletare('da_completare', 'Da completare'),
+  materialeMancante('materiale_mancante', 'Materiale mancante');
+
+  const EsitoLavoro(this.databaseValue, this.label);
+
+  factory EsitoLavoro.fromDatabase(String? value) => values.firstWhere(
+        (item) => item.databaseValue == value,
+        orElse: () => EsitoLavoro.daEseguire,
+      );
+
+  final String databaseValue;
+  final String label;
+}
+
 class Rapportino extends Equatable {
   const Rapportino({
     required this.id,
@@ -86,6 +103,10 @@ class Rapportino extends Equatable {
     this.versioneRemota = 0,
     this.sincronizzazione = StatoSincronizzazione.daSincronizzare,
     this.erroreSincronizzazione,
+    this.pianificato = false,
+    this.notePianificazione,
+    this.esitoLavoro = EsitoLavoro.daEseguire,
+    this.notaLavoroIncompleto,
   });
 
   factory Rapportino.fromLocalMap(Map<String, Object?> map) {
@@ -119,6 +140,10 @@ class Rapportino extends Equatable {
         map['sync_status'] as String?,
       ),
       erroreSincronizzazione: map['sync_error'] as String?,
+      pianificato: (map['pianificato'] as int? ?? 0) == 1,
+      notePianificazione: map['note_pianificazione'] as String?,
+      esitoLavoro: EsitoLavoro.fromDatabase(map['esito_lavoro'] as String?),
+      notaLavoroIncompleto: map['nota_lavoro_incompleto'] as String?,
     );
   }
 
@@ -149,6 +174,10 @@ class Rapportino extends Equatable {
   final int versioneRemota;
   final StatoSincronizzazione sincronizzazione;
   final String? erroreSincronizzazione;
+  final bool pianificato;
+  final String? notePianificazione;
+  final EsitoLavoro esitoLavoro;
+  final String? notaLavoroIncompleto;
 
   double get oreTotali {
     final end = dataOraFine;
@@ -184,6 +213,10 @@ class Rapportino extends Equatable {
         'versione_remota': versioneRemota,
         'sync_status': sincronizzazione.databaseValue,
         'sync_error': erroreSincronizzazione,
+        'pianificato': pianificato ? 1 : 0,
+        'note_pianificazione': notePianificazione,
+        'esito_lavoro': esitoLavoro.databaseValue,
+        'nota_lavoro_incompleto': notaLavoroIncompleto,
       };
 
   Map<String, Object?> toRemoteMap({required StatoRapportino remoteState}) => {
@@ -205,6 +238,10 @@ class Rapportino extends Equatable {
         'gps_precisione_metri': gpsPrecisioneMetri,
         'gps_rilevato_at': gpsRilevatoAt?.toUtc().toIso8601String(),
         'stato': remoteState.databaseValue,
+        'pianificato': pianificato,
+        'note_pianificazione': notePianificazione,
+        'esito_lavoro': esitoLavoro.databaseValue,
+        'nota_lavoro_incompleto': notaLavoroIncompleto,
       };
 
   Rapportino copyWith({
@@ -216,6 +253,10 @@ class Rapportino extends Equatable {
     StatoSincronizzazione? sincronizzazione,
     String? erroreSincronizzazione,
     bool clearSyncError = false,
+    bool? pianificato,
+    String? notePianificazione,
+    EsitoLavoro? esitoLavoro,
+    String? notaLavoroIncompleto,
   }) {
     return Rapportino(
       id: id,
@@ -246,6 +287,11 @@ class Rapportino extends Equatable {
       sincronizzazione: sincronizzazione ?? this.sincronizzazione,
       erroreSincronizzazione:
           clearSyncError ? null : erroreSincronizzazione ?? this.erroreSincronizzazione,
+      pianificato: pianificato ?? this.pianificato,
+      notePianificazione: notePianificazione ?? this.notePianificazione,
+      esitoLavoro: esitoLavoro ?? this.esitoLavoro,
+      notaLavoroIncompleto:
+          notaLavoroIncompleto ?? this.notaLavoroIncompleto,
     );
   }
 
@@ -278,6 +324,10 @@ class Rapportino extends Equatable {
         versioneRemota,
         sincronizzazione,
         erroreSincronizzazione,
+        pianificato,
+        notePianificazione,
+        esitoLavoro,
+        notaLavoroIncompleto,
       ];
 }
 

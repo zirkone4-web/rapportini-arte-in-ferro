@@ -1,7 +1,10 @@
 import 'package:arte_in_ferro_rapportini/core/gps/location_service.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/domain/entities/app_user.dart';
 import 'package:arte_in_ferro_rapportini/features/company/data/company_service.dart';
+import 'package:arte_in_ferro_rapportini/features/company/presentation/client_details_page.dart';
+import 'package:arte_in_ferro_rapportini/features/rapportini/presentation/pages/rapportini_page.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,8 +22,12 @@ class AttendancePage extends StatefulWidget {
 
 class _AttendancePageState extends State<AttendancePage> {
   Map<String, dynamic>? _latest;
+  Map<String, dynamic>? _company;
+  List<Map<String, dynamic>> _worksites = [];
   List<Map<String, dynamic>> _vehicles = [];
   String? _vehicleId;
+  bool _isTransfer = false;
+  final _transferReason = TextEditingController();
   bool _loading = true;
   bool _saving = false;
 
@@ -37,11 +44,17 @@ class _AttendancePageState extends State<AttendancePage> {
       final values = await Future.wait([
         _service().latestAttendance(widget.user.id),
         _service().loadVehicles(),
+        _service().loadAttendanceConfiguration(),
       ]);
       if (!mounted) return;
       setState(() {
         _latest = values[0] as Map<String, dynamic>?;
         _vehicles = values[1] as List<Map<String, dynamic>>;
+        final configuration = values[2] as Map<String, dynamic>;
+        _company = configuration['company'] as Map<String, dynamic>?;
+        _worksites = List<Map<String, dynamic>>.from(
+          configuration['worksites'] as List,
+        );
         _loading = false;
       });
     } on Object catch (error) {
@@ -52,20 +65,56 @@ class _AttendancePageState extends State<AttendancePage> {
   }
 
   Future<void> _register() async {
+    if (_isTransfer && _transferReason.text.trim().length < 3) {
+      _showError('Indica il motivo della trasferta.');
+      return;
+    }
     setState(() => _saving = true);
     try {
       final location = await LocationService().capture();
+      final reference = _isTransfer ? null : _nearestReference(location);
+      final geofenceEnabled = _company?['controllo_gps_presenze'] == true;
+      if (!_isTransfer && geofenceEnabled && reference == null) {
+        throw StateError(
+          'La sede non è ancora configurata. Contatta l’amministratore.',
+        );
+      }
+      if (!_isTransfer &&
+          geofenceEnabled &&
+          reference != null &&
+          (reference['distance'] as double) > (reference['radius'] as double)) {
+        throw StateError(
+          'Sei fuori dall’area autorizzata di ${reference['name']} '
+          '(${(reference['distance'] as double).round()} m). '
+          'Attiva “Presenza in trasferta” per continuare.',
+        );
+      }
+      final type = _isInside ? 'uscita' : 'entrata';
       await _service().registerAttendance(
         employeeId: widget.user.id,
-        type: _isInside ? 'uscita' : 'entrata',
+        type: type,
         location: location,
+        mode: _isTransfer
+            ? 'trasferta'
+            : reference?['kind'] == 'cantiere'
+                ? 'cantiere'
+                : 'sede',
+        worksiteId: reference?['kind'] == 'cantiere'
+            ? reference!['id'] as String
+            : null,
+        transferReason: _isTransfer ? _transferReason.text : null,
         vehicleId: _vehicleId,
+        place: _isTransfer ? 'Trasferta' : reference?['name'] as String?,
       );
       await _load();
       if (mounted) {
+        _transferReason.clear();
+        setState(() => _isTransfer = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isInside ? 'Entrata registrata' : 'Uscita registrata'),
+            content: Text(
+              type == 'entrata' ? 'Entrata registrata' : 'Uscita registrata',
+            ),
           ),
         );
       }
@@ -76,11 +125,84 @@ class _AttendancePageState extends State<AttendancePage> {
     }
   }
 
+  Map<String, dynamic>? _nearestReference(LocationSnapshot location) {
+    final references = <Map<String, dynamic>>[];
+    void addReference({
+      required String kind,
+      required String? id,
+      required String name,
+      required Object? latitude,
+      required Object? longitude,
+      required Object? radius,
+    }) {
+      final lat = (latitude as num?)?.toDouble();
+      final lon = (longitude as num?)?.toDouble();
+      if (lat == null || lon == null) return;
+      final allowedRadius = (radius as num?)?.toDouble() ?? 200;
+      final distance = Geolocator.distanceBetween(
+        location.latitude,
+        location.longitude,
+        lat,
+        lon,
+      );
+      references.add({
+        'kind': kind,
+        'id': id,
+        'name': name,
+        'radius': allowedRadius,
+        'distance': distance,
+        'inside': distance <= allowedRadius,
+      });
+    }
+
+    final company = _company;
+    if (company != null) {
+      addReference(
+        kind: 'sede',
+        id: null,
+        name: company['ragione_sociale'] as String? ?? 'Sede aziendale',
+        latitude: company['gps_latitudine'],
+        longitude: company['gps_longitudine'],
+        radius: company['raggio_presenza_metri'],
+      );
+    }
+    for (final worksite in _worksites) {
+      addReference(
+        kind: 'cantiere',
+        id: worksite['id'] as String?,
+        name: worksite['nome'] as String? ?? 'Cantiere',
+        latitude: worksite['gps_latitudine'],
+        longitude: worksite['gps_longitudine'],
+        radius: worksite['raggio_presenza_metri'],
+      );
+    }
+    if (references.isEmpty) return null;
+    references.sort((a, b) {
+      final insideOrder = (b['inside'] == true ? 1 : 0)
+          .compareTo(a['inside'] == true ? 1 : 0);
+      if (insideOrder != 0) return insideOrder;
+      return (a['distance'] as double).compareTo(b['distance'] as double);
+    });
+    return references.first;
+  }
+
   void _showError(Object error) {
     if (!mounted) return;
+    final message = error
+        .toString()
+        .replaceFirst('Bad state: ', '')
+        .replaceFirst('PostgrestException(message: ', '')
+        .split(', code:')
+        .first;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Operazione non riuscita: $error')),
+      SnackBar(content: Text('Operazione non riuscita: $message')),
     );
+  }
+
+  @override
+  void dispose() {
+    _transferReason.dispose();
+    super.dispose();
   }
 
   @override
@@ -99,9 +221,34 @@ class _AttendancePageState extends State<AttendancePage> {
                   subtitle: latestAt == null
                       ? 'Nessuna timbratura registrata oggi'
                       : 'Ultima registrazione: '
-                          '${DateFormat('HH:mm').format(latestAt.toLocal())}',
+                          '${DateFormat(_isToday(latestAt.toLocal()) ? 'HH:mm' : 'dd/MM HH:mm').format(latestAt.toLocal())}',
                 ),
                 const SizedBox(height: 20),
+                SwitchListTile(
+                  value: _isTransfer,
+                  onChanged: _saving
+                      ? null
+                      : (value) => setState(() => _isTransfer = value),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  secondary: const Icon(Icons.travel_explore_outlined),
+                  title: const Text('Presenza in trasferta'),
+                  subtitle: const Text(
+                    'Attivala prima di registrare se non sei in sede o in un cantiere configurato.',
+                  ),
+                ),
+                if (_isTransfer) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _transferReason,
+                    minLines: 2,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Motivo della trasferta *',
+                      prefixIcon: Icon(Icons.edit_location_alt_outlined),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
                 DropdownButtonFormField<String?>(
                   initialValue: _vehicleId,
                   decoration: const InputDecoration(
@@ -141,6 +288,11 @@ class _AttendancePageState extends State<AttendancePage> {
               ],
             ),
     );
+  }
+
+  bool _isToday(DateTime value) {
+    final now = DateTime.now();
+    return value.year == now.year && value.month == now.month && value.day == now.day;
   }
 }
 
@@ -495,15 +647,23 @@ class _CommunicationsPageState extends State<CommunicationsPage> {
   Future<void> _open(Map<String, dynamic> row) async {
     final message = Map<String, dynamic>.from(row['comunicazioni'] as Map);
     final confirm = message['richiede_conferma'] == true;
-    await showDialog<void>(
+    final type = '${message['tipo'] ?? 'generica'}';
+    final hasAction = (type == 'cliente' && message['cliente_id'] != null) ||
+        (type == 'rapportino' && message['rapportino_id'] != null);
+    final openLinked = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('${message['titolo']}'),
         content: SingleChildScrollView(child: Text('${message['messaggio']}')),
         actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(hasAction ? 'CHIUDI' : (confirm ? 'HO LETTO E CONFERMO' : 'HO LETTO')),
+          ),
+          if (hasAction)
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(confirm ? 'HO LETTO E CONFERMO' : 'HO LETTO'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(type == 'cliente' ? 'APRI SCHEDA CLIENTE' : 'APRI RAPPORTINO'),
           ),
         ],
       ),
@@ -515,6 +675,20 @@ class _CommunicationsPageState extends State<CommunicationsPage> {
     );
     if (mounted) {
       setState(() => _future = _service().loadCommunications(widget.user.id));
+      if (openLinked == true) {
+        if (type == 'cliente') {
+          await Navigator.of(context).push<void>(MaterialPageRoute(
+            builder: (_) => ClientDetailsPage(clientId: '${message['cliente_id']}'),
+          ));
+        } else if (type == 'rapportino') {
+          await Navigator.of(context).push<void>(MaterialPageRoute(
+            builder: (_) => RapportiniPage(
+              user: widget.user,
+              initialReportId: '${message['rapportino_id']}',
+            ),
+          ));
+        }
+      }
     }
   }
 

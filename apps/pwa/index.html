@@ -18,6 +18,7 @@
       <label>Email<input id="email" type="email" autocomplete="username"></label>
       <label>Password<input id="password" type="password" autocomplete="current-password"></label>
       <button id="loginButton">ACCEDI</button><p id="loginError" class="error"></p>
+      <p><a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></p>
     </section>
     <section id="app" class="hidden">
       <div class="welcome"><h1 id="welcome">Buongiorno</h1><p id="syncState">Connesso al cloud aziendale</p></div>
@@ -25,11 +26,13 @@
         <button data-page="attendance">⏱️<span>Presenze</span></button><button data-page="reports">🧾<span>Rapportini</span></button>
         <button data-page="fuel">⛽<span>Carburante</span></button><button data-page="anomaly">⚠️<span>Anomalie</span></button>
         <button data-page="documents">📄<span>I miei documenti</span></button><button data-page="communications">📣<span>Comunicazioni</span></button>
-        <button data-page="company">🏢<span>Azienda</span></button><button data-page="contacts">☎️<span>Contatti</span></button>
+        <button data-page="materials">📦<span>Richiesta materiali</span></button><button data-page="company">🏢<span>Azienda</span></button>
+        <button data-page="contacts">☎️<span>Contatti</span></button>
       </nav>
       <section id="page" class="card hidden"></section>
     </section>
   </main>
+  <footer style="text-align:center;padding:16px"><a href="privacy.html" target="_blank" rel="noopener">Privacy Policy dell’app</a></footer>
   <template id="back"><button class="back">← Menu</button></template>
   <script src="app.js"></script>
 </body></html>

@@ -5,6 +5,7 @@ import 'package:arte_in_ferro_rapportini/core/errors/app_exception.dart';
 import 'package:arte_in_ferro_rapportini/core/gps/location_service.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/domain/entities/app_user.dart';
 import 'package:arte_in_ferro_rapportini/features/company/data/company_service.dart';
+import 'package:arte_in_ferro_rapportini/features/materials/presentation/material_request_page.dart';
 import 'package:arte_in_ferro_rapportini/features/rapportini/domain/entities/cliente.dart';
 import 'package:arte_in_ferro_rapportini/features/rapportini/domain/entities/rapportino.dart';
 import 'package:arte_in_ferro_rapportini/features/rapportini/presentation/cubit/rapportini_cubit.dart';
@@ -40,6 +41,7 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
   late final TextEditingController _targaController;
   late final TextEditingController _kmController;
   late final TextEditingController _descrizioneController;
+  late final TextEditingController _incompleteNoteController;
   late DateTime _inizio;
   DateTime? _fine;
   String? _clienteId;
@@ -49,6 +51,7 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
   List<Map<String, dynamic>> _dipendenti = [];
   bool _loadingCompanyData = true;
   late TipoIntervento _tipologia;
+  late EsitoLavoro _esitoLavoro;
   List<RapportinoFoto> _foto = [];
   String? _firmaPath;
   bool _signatureChanged = false;
@@ -67,6 +70,9 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
     _targaController = TextEditingController(text: report?.targaMezzo);
     _kmController = TextEditingController(text: report?.kmMezzo?.toString());
     _descrizioneController = TextEditingController(text: report?.descrizione);
+    _incompleteNoteController = TextEditingController(
+      text: report?.notaLavoroIncompleto,
+    );
     _inizio = report?.dataOraInizio.toLocal() ?? DateTime.now();
     _fine = report?.dataOraFine?.toLocal() ??
         DateTime.now().add(const Duration(hours: 1));
@@ -74,6 +80,7 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
     _mezzoId = report?.mezzoId;
     _collaboratoriIds = [...?report?.collaboratoriIds];
     _tipologia = report?.tipologia ?? TipoIntervento.montaggioPosa;
+    _esitoLavoro = report?.esitoLavoro ?? EsitoLavoro.daEseguire;
     _firmaPath = report?.firmaLocalePath;
     _loadCompanyData();
 
@@ -91,6 +98,7 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
     _targaController.dispose();
     _kmController.dispose();
     _descrizioneController.dispose();
+    _incompleteNoteController.dispose();
     super.dispose();
   }
 
@@ -119,6 +127,34 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                   children: [
+                    if (widget.rapportino?.pianificato == true) ...[
+                      Card(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.event_available_outlined),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Lavoro assegnato dall’ufficio',
+                                    style: TextStyle(fontWeight: FontWeight.w800),
+                                  ),
+                                ],
+                              ),
+                              if (widget.rapportino?.notePianificazione?.isNotEmpty == true) ...[
+                                const SizedBox(height: 8),
+                                Text(widget.rapportino!.notePianificazione!),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
                     _SectionTitle(
                       number: 1,
                       title: 'Cliente e intervento',
@@ -281,7 +317,7 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
                                   'Collaboratore',
                             ),
                             selected: _collaboratoriIds.contains(id),
-                            onSelected: _busy
+                            onSelected: _busy || !_canEditTeam
                                 ? null
                                 : (selected) => setState(() {
                                       if (selected) {
@@ -330,6 +366,63 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
                       ),
                       validator: _required,
                     ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<EsitoLavoro>(
+                      initialValue: _esitoLavoro,
+                      decoration: const InputDecoration(
+                        labelText: 'Esito del lavoro',
+                        prefixIcon: Icon(Icons.fact_check_outlined),
+                      ),
+                      items: EsitoLavoro.values
+                          .map((item) => DropdownMenuItem(
+                                value: item,
+                                child: Text(item.label),
+                              ))
+                          .toList(growable: false),
+                      onChanged: _busy
+                          ? null
+                          : (value) => setState(() {
+                                if (value != null) _esitoLavoro = value;
+                              }),
+                    ),
+                    if (_esitoLavoro == EsitoLavoro.daCompletare ||
+                        _esitoLavoro == EsitoLavoro.materialeMancante) ...[
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _incompleteNoteController,
+                        minLines: 2,
+                        maxLines: 5,
+                        decoration: InputDecoration(
+                          labelText: _esitoLavoro == EsitoLavoro.materialeMancante
+                              ? 'Quale materiale manca? *'
+                              : 'Cosa resta da completare? *',
+                          alignLabelWithHint: true,
+                        ),
+                        validator: (value) => (value?.trim().length ?? 0) < 3
+                            ? 'Inserisci una breve spiegazione'
+                            : null,
+                      ),
+                    ],
+                    if (_esitoLavoro == EsitoLavoro.materialeMancante) ...[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => Navigator.of(context).push<void>(
+                                  MaterialPageRoute(
+                                    builder: (_) => MaterialRequestPage(
+                                      user: widget.user,
+                                      reportId:
+                                          (widget.rapportino?.versioneRemota ?? 0) > 0
+                                              ? _id
+                                              : null,
+                                    ),
+                                  ),
+                                ),
+                        icon: const Icon(Icons.add_shopping_cart_outlined),
+                        label: const Text('INSERISCI MATERIALI MANCANTI'),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     const _SectionTitle(number: 4, title: 'Foto cantiere'),
                     _PhotoStrip(foto: _foto),
@@ -623,7 +716,7 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
       final now = DateTime.now();
       final report = Rapportino(
         id: _id,
-        dipendenteId: widget.user.id,
+        dipendenteId: existing?.dipendenteId ?? widget.user.id,
         clienteId: cliente.id,
         clienteNome: cliente.ragioneSociale,
         luogo: _luogoController.text.trim(),
@@ -648,6 +741,10 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
         versioneRemota: existing?.versioneRemota ?? 0,
+        pianificato: existing?.pianificato ?? false,
+        notePianificazione: existing?.notePianificazione,
+        esitoLavoro: _esitoLavoro,
+        notaLavoroIncompleto: _emptyToNull(_incompleteNoteController.text),
       );
       await context.read<RapportiniCubit>().save(report, _foto);
       if (mounted) Navigator.of(context).pop(true);
@@ -663,8 +760,13 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
   }
 
   List<Map<String, dynamic>> get _availableCollaborators => _dipendenti
-      .where((employee) => employee['id'] != widget.user.id)
+      .where((employee) =>
+          employee['id'] !=
+          (widget.rapportino?.dipendenteId ?? widget.user.id))
       .toList(growable: false);
+
+  bool get _canEditTeam => widget.rapportino == null ||
+      widget.rapportino!.dipendenteId == widget.user.id;
 
   Future<void> _loadCompanyData() async {
     try {

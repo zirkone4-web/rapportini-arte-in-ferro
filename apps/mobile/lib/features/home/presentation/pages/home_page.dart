@@ -1,16 +1,100 @@
+import 'dart:async';
+
+import 'package:arte_in_ferro_rapportini/core/notifications/push_notification_service.dart';
+import 'package:arte_in_ferro_rapportini/core/updates/app_update_service.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/domain/entities/app_user.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/presentation/bloc/auth_event.dart';
 import 'package:arte_in_ferro_rapportini/features/auth/presentation/widgets/company_mark.dart';
+import 'package:arte_in_ferro_rapportini/features/admin/presentation/admin_dashboard_page.dart';
 import 'package:arte_in_ferro_rapportini/features/company/presentation/company_pages.dart';
+import 'package:arte_in_ferro_rapportini/features/company/presentation/client_details_page.dart';
 import 'package:arte_in_ferro_rapportini/features/rapportini/presentation/pages/rapportini_page.dart';
+import 'package:arte_in_ferro_rapportini/features/materials/presentation/material_request_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({required this.user, super.key});
 
   final AppUser user;
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  StreamSubscription<RemoteMessage>? _notificationSubscription;
+  StreamSubscription<RemoteMessage>? _openedNotificationSubscription;
+
+  AppUser get user => widget.user;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final push = PushNotificationService.instance;
+      if (push != null) {
+        unawaited(push.activateForUser(user.id).catchError((_) {}));
+        _notificationSubscription = push.foregroundMessages.listen(
+          (message) {
+            if (!mounted) return;
+            final title = message.notification?.title ?? 'Nuova comunicazione';
+            final body = message.notification?.body ??
+                'Apri Comunicazioni per leggere il nuovo messaggio.';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$title\n$body'),
+                action: SnackBarAction(
+                  label: 'APRI',
+                  onPressed: () => _push(
+                    context,
+                    CommunicationsPage(user: user),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+        _openedNotificationSubscription = push.openedMessages.listen(
+          _openNotification,
+        );
+        final initialMessage = await push.getInitialMessage();
+        if (initialMessage != null && mounted) {
+          await _openNotification(initialMessage);
+        }
+      }
+      await AppUpdateService().check(context);
+    });
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    _openedNotificationSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _openNotification(RemoteMessage message) async {
+    if (!mounted) return;
+    final type = message.data['type'];
+    final clientId = message.data['client_id'];
+    final reportId = message.data['report_id'];
+    if (type == 'cliente' && clientId != null && clientId.isNotEmpty) {
+      await _push(context, ClientDetailsPage(clientId: clientId));
+      return;
+    }
+    if (type == 'rapportino' && reportId != null && reportId.isNotEmpty) {
+      await _push(
+        context,
+        RapportiniPage(user: user, initialReportId: reportId),
+      );
+      return;
+    }
+    await _push(context, CommunicationsPage(user: user));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -126,6 +210,16 @@ class HomePage extends StatelessWidget {
                       ),
                     ),
                     _MenuTile(
+                      icon: Icons.inventory_2_outlined,
+                      title: 'Materiali',
+                      subtitle: 'Richiedi all’ufficio',
+                      color: const Color(0xFF0F766E),
+                      onTap: () => _push(
+                        context,
+                        MaterialRequestPage(user: user),
+                      ),
+                    ),
+                    _MenuTile(
                       icon: Icons.factory_outlined,
                       title: 'Azienda',
                       subtitle: 'Informazioni utili',
@@ -159,11 +253,12 @@ class HomePage extends StatelessWidget {
             ),
             if (user.role.isAdmin) ...[
               const SizedBox(height: 14),
-              const _ActionCard(
+              _ActionCard(
                 icon: Icons.dashboard_outlined,
                 title: 'Amministrazione',
-                subtitle: 'La gestione completa sarà disponibile su Windows',
-                badge: 'Desktop',
+                subtitle: 'Presenze, ore, dipendenti, clienti e cantieri',
+                badge: 'Accesso admin',
+                onTap: () => _push(context, const AdminDashboardPage()),
               ),
             ],
           ],

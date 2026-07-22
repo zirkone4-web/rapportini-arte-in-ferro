@@ -50,7 +50,7 @@ public partial class DashboardWindow : Window
         new EmployeeAccessWindow(new EmployeeAccessViewModel(_api)) { Owner = this }.ShowDialog();
 
     private void AttendanceClick(object sender, RoutedEventArgs e) =>
-        new AttendanceWindow(_viewModel) { Owner = this }.ShowDialog();
+        new AttendanceWindow(new AttendanceViewModel(_api)) { Owner = this }.ShowDialog();
 
     private void DeadlinesClick(object sender, RoutedEventArgs e) =>
         new DeadlinesWindow(_viewModel) { Owner = this }.ShowDialog();
@@ -73,4 +73,7 @@ public partial class DashboardWindow : Window
 
     private void CompanySettingsClick(object sender, RoutedEventArgs e) =>
         new CompanySettingsWindow(new CompanySettingsViewModel(_api)) { Owner = this }.ShowDialog();
+
+    private void MasterDataClick(object sender, RoutedEventArgs e) =>
+        new MasterDataWindow(new MasterDataViewModel(_api)) { Owner = this }.ShowDialog();
 }

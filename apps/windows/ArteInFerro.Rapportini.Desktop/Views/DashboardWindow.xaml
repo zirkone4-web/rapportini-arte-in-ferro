@@ -79,6 +79,7 @@
 
         <WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="16,0,16,8">
             <Button Content="Azienda e contatti" Click="CompanySettingsClick" Background="#E2E8F0" FontWeight="SemiBold" />
+            <Button Content="Clienti e cantieri" Click="MasterDataClick" Background="#D1FAE5" FontWeight="SemiBold" />
             <Button Content="Nuovo dipendente" Click="NewEmployeeClick"
                     Background="#DBEAFE" FontWeight="SemiBold" />
             <Button Content="Dipendenti e accessi" Click="EmployeeAccessClick"

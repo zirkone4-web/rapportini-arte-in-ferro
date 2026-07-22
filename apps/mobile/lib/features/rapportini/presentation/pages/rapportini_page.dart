@@ -12,11 +12,13 @@ class RapportiniPage extends StatelessWidget {
   const RapportiniPage({
     required this.user,
     this.openNewOnStart = false,
+    this.initialReportId,
     super.key,
   });
 
   final AppUser user;
   final bool openNewOnStart;
+  final String? initialReportId;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +30,7 @@ class RapportiniPage extends StatelessWidget {
       child: _RapportiniView(
         user: user,
         openNewOnStart: openNewOnStart,
+        initialReportId: initialReportId,
       ),
     );
   }
@@ -37,10 +40,12 @@ class _RapportiniView extends StatefulWidget {
   const _RapportiniView({
     required this.user,
     required this.openNewOnStart,
+    this.initialReportId,
   });
 
   final AppUser user;
   final bool openNewOnStart;
+  final String? initialReportId;
 
   @override
   State<_RapportiniView> createState() => _RapportiniViewState();
@@ -49,6 +54,16 @@ class _RapportiniView extends StatefulWidget {
 class _RapportiniViewState extends State<_RapportiniView> {
   StatoRapportino? _filter;
   bool _openedInitialForm = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialReportId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.read<RapportiniCubit>().sync();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +83,17 @@ class _RapportiniViewState extends State<_RapportiniView> {
             state.status == RapportiniStatus.ready) {
           _openedInitialForm = true;
           WidgetsBinding.instance.addPostFrameCallback((_) => _openForm());
+        }
+        if (widget.initialReportId != null &&
+            !_openedInitialForm &&
+            state.status == RapportiniStatus.ready) {
+          final matches = state.rapportini
+              .where((item) => item.id == widget.initialReportId)
+              .toList(growable: false);
+          if (matches.isNotEmpty) {
+            _openedInitialForm = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) => _openForm(matches.first));
+          }
         }
       },
       builder: (context, state) {
@@ -214,7 +240,12 @@ class _RapportiniViewState extends State<_RapportiniView> {
                   : date.format(report.dataOraFine!.toLocal()),
             ),
             _DetailRow('Luogo', report.luogo),
+            if (report.notePianificazione?.isNotEmpty == true)
+              _DetailRow('Note dell’ufficio', report.notePianificazione!),
             _DetailRow('Descrizione', report.descrizione),
+            _DetailRow('Esito lavoro', report.esitoLavoro.label),
+            if (report.notaLavoroIncompleto?.isNotEmpty == true)
+              _DetailRow('Da completare / materiale', report.notaLavoroIncompleto!),
             if (report.notaAmministratore?.isNotEmpty == true)
               _DetailRow('Nota ufficio', report.notaAmministratore!),
           ],
@@ -267,6 +298,11 @@ class _ReportCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 6,
                       children: [
+                        if (report.pianificato)
+                          const Chip(
+                            avatar: Icon(Icons.event_available_outlined, size: 17),
+                            label: Text('Assegnato dall’ufficio'),
+                          ),
                         Chip(
                           visualDensity: VisualDensity.compact,
                           label: Text(report.stato.label),
@@ -274,6 +310,15 @@ class _ReportCard extends StatelessWidget {
                         _SyncChip(status: report.sincronizzazione),
                       ],
                     ),
+                    if (report.notePianificazione?.isNotEmpty == true) ...[
+                      const SizedBox(height: 7),
+                      Text(
+                        report.notePianificazione!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
                     if (report.erroreSincronizzazione != null) ...[
                       const SizedBox(height: 8),
                       Text(

@@ -157,6 +157,9 @@ class OfflineRapportiniRepository implements RapportiniRepository {
         sameInstant(local.dataOraInizio, remote['data_ora_inizio']) &&
         sameInstant(local.dataOraFine, remote['data_ora_fine']) &&
         remote['descrizione'] == local.descrizione &&
+        (remote['esito_lavoro'] ?? 'da_eseguire') ==
+            local.esitoLavoro.databaseValue &&
+        remote['nota_lavoro_incompleto'] == local.notaLavoroIncompleto &&
         remote['stato'] == local.stato.databaseValue &&
         (local.stato == StatoRapportino.bozza ||
             remote['firma_cliente_url'] != null);
@@ -257,6 +260,10 @@ class OfflineRapportiniRepository implements RapportiniRepository {
       gpsRilevatoAt: parseNullable(json['gps_rilevato_at']),
       stato: StatoRapportino.fromDatabase(json['stato'] as String),
       notaAmministratore: json['nota_amministratore'] as String?,
+      pianificato: json['pianificato'] as bool? ?? false,
+      notePianificazione: json['note_pianificazione'] as String?,
+      esitoLavoro: EsitoLavoro.fromDatabase(json['esito_lavoro'] as String?),
+      notaLavoroIncompleto: json['nota_lavoro_incompleto'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
       versioneRemota: json['versione'] as int? ?? 1,

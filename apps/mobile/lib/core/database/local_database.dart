@@ -12,7 +12,7 @@ class LocalDatabase {
     final root = await getDatabasesPath();
     _database = await openDatabase(
       p.join(root, 'arte_in_ferro_rapportini.db'),
-      version: 4,
+      version: 5,
       onConfigure: (database) => database.execute('PRAGMA foreign_keys = ON'),
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -69,6 +69,10 @@ class LocalDatabase {
         versione_remota INTEGER NOT NULL DEFAULT 0,
         sync_status TEXT NOT NULL,
         sync_error TEXT,
+        pianificato INTEGER NOT NULL DEFAULT 0,
+        note_pianificazione TEXT,
+        esito_lavoro TEXT NOT NULL DEFAULT 'da_eseguire',
+        nota_lavoro_incompleto TEXT,
         FOREIGN KEY(cliente_id) REFERENCES clienti(id)
       )
     ''');
@@ -125,6 +129,20 @@ class LocalDatabase {
       await database.execute('ALTER TABLE rapportini ADD COLUMN mezzo_id TEXT');
       await database.execute(
         "ALTER TABLE rapportini ADD COLUMN collaboratori_ids TEXT NOT NULL DEFAULT '[]'",
+      );
+    }
+    if (oldVersion < 5) {
+      await database.execute(
+        'ALTER TABLE rapportini ADD COLUMN pianificato INTEGER NOT NULL DEFAULT 0',
+      );
+      await database.execute(
+        'ALTER TABLE rapportini ADD COLUMN note_pianificazione TEXT',
+      );
+      await database.execute(
+        "ALTER TABLE rapportini ADD COLUMN esito_lavoro TEXT NOT NULL DEFAULT 'da_eseguire'",
+      );
+      await database.execute(
+        'ALTER TABLE rapportini ADD COLUMN nota_lavoro_incompleto TEXT',
       );
     }
   }
@@ -192,8 +210,8 @@ class LocalDatabase {
   Future<List<Rapportino>> listRapportini(String dipendenteId) async {
     final rows = await _db.query(
       'rapportini',
-      where: 'dipendente_id = ?',
-      whereArgs: [dipendenteId],
+      where: 'dipendente_id = ? OR collaboratori_ids LIKE ?',
+      whereArgs: [dipendenteId, '%$dipendenteId%'],
       orderBy: 'data_ora_inizio DESC',
     );
     return rows.map(Rapportino.fromLocalMap).toList(growable: false);
@@ -202,9 +220,10 @@ class LocalDatabase {
   Future<List<Rapportino>> listPendingRapportini(String dipendenteId) async {
     final rows = await _db.query(
       'rapportini',
-      where: 'dipendente_id = ? AND sync_status != ?',
+      where: '(dipendente_id = ? OR collaboratori_ids LIKE ?) AND sync_status != ?',
       whereArgs: [
         dipendenteId,
+        '%$dipendenteId%',
         StatoSincronizzazione.sincronizzato.databaseValue,
       ],
       orderBy: 'updated_at ASC',

@@ -36,10 +36,20 @@ class RapportiniRemoteDataSource {
   }
 
   Future<List<Map<String, dynamic>>> fetchRapportini(String dipendenteId) async {
+    final assignments = await _client
+        .from('rapportino_collaboratori')
+        .select('rapportino_id')
+        .eq('dipendente_id', dipendenteId);
+    final assignedIds = assignments
+        .map((item) => item['rapportino_id'] as String)
+        .toList(growable: false);
+    final filter = assignedIds.isEmpty
+        ? 'dipendente_id.eq.$dipendenteId'
+        : 'dipendente_id.eq.$dipendenteId,id.in.(${assignedIds.join(',')})';
     final rows = await _client
         .from('rapportini')
         .select('*,rapportino_collaboratori(dipendente_id)')
-        .eq('dipendente_id', dipendenteId)
+        .or(filter)
         .order('data_ora_inizio', ascending: false);
     return rows;
   }
@@ -85,7 +95,7 @@ class RapportiniRemoteDataSource {
     }
 
     final remotePath =
-        '${report.dipendenteId}/${report.id}/firma_cliente.png';
+        '${_client.auth.currentUser!.id}/${report.id}/firma_cliente.png';
     await _client.storage.from('rapportini-firme').upload(
           remotePath,
           file,
@@ -103,7 +113,7 @@ class RapportiniRemoteDataSource {
       throw const AppException('Una fotografia locale non è più disponibile.');
     }
     final remotePath =
-        '${report.dipendenteId}/${report.id}/${foto.id}.jpg';
+        '${_client.auth.currentUser!.id}/${report.id}/${foto.id}.jpg';
     await _client.storage.from('rapportini-foto').upload(
           remotePath,
           file,
@@ -134,6 +144,9 @@ class RapportiniRemoteDataSource {
   }
 
   Future<void> saveCollaborators(Rapportino report) async {
+    // I compagni di squadra possono compilare il rapportino assegnato, ma la
+    // composizione della squadra resta quella decisa dall'ufficio/caposquadra.
+    if (_client.auth.currentUser?.id != report.dipendenteId) return;
     await _client
         .from('rapportino_collaboratori')
         .delete()
