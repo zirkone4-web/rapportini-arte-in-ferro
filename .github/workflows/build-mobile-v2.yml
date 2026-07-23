@@ -1,0 +1,269 @@
+name: Build Mobile V2 Android e iPhone
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - mobile-v2-da-zero
+      - main
+    paths:
+      - "apps/mobile_v2/**"
+      - ".github/workflows/build-mobile-v2.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifica:
+    name: Verifica Flutter
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: apps/mobile_v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Genera piattaforme native
+        run: |
+          cp -R lib "$RUNNER_TEMP/v2-lib"
+          cp pubspec.yaml "$RUNNER_TEMP/v2-pubspec.yaml"
+          cp analysis_options.yaml "$RUNNER_TEMP/v2-analysis.yaml"
+          flutter create --platforms=android,ios \
+            --org it.arteinferrolascari \
+            --project-name arte_in_ferro_mobile_v2 .
+          rm -rf lib
+          cp -R "$RUNNER_TEMP/v2-lib" lib
+          cp "$RUNNER_TEMP/v2-pubspec.yaml" pubspec.yaml
+          cp "$RUNNER_TEMP/v2-analysis.yaml" analysis_options.yaml
+          flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
+  android:
+    name: APK e AAB Android
+    needs: verifica
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/mobile_v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Genera Android
+        run: |
+          cp -R lib "$RUNNER_TEMP/v2-lib"
+          cp pubspec.yaml "$RUNNER_TEMP/v2-pubspec.yaml"
+          flutter create --platforms=android,ios \
+            --org it.arteinferrolascari \
+            --project-name arte_in_ferro_mobile_v2 .
+          rm -rf lib
+          cp -R "$RUNNER_TEMP/v2-lib" lib
+          cp "$RUNNER_TEMP/v2-pubspec.yaml" pubspec.yaml
+          flutter pub get
+      - name: Configura Android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import base64, os, pathlib, re
+          import xml.etree.ElementTree as ET
+
+          root = pathlib.Path(".")
+          ns = "http://schemas.android.com/apk/res/android"
+          ET.register_namespace("android", ns)
+
+          manifest = root / "android/app/src/main/AndroidManifest.xml"
+          tree = ET.parse(manifest)
+          node = tree.getroot()
+          existing = {
+              item.attrib.get(f"{{{ns}}}name")
+              for item in node.findall("uses-permission")
+          }
+          permissions = [
+              "android.permission.INTERNET",
+              "android.permission.CAMERA",
+              "android.permission.ACCESS_COARSE_LOCATION",
+              "android.permission.ACCESS_FINE_LOCATION",
+          ]
+          for permission in reversed(permissions):
+              if permission not in existing:
+                  item = ET.Element("uses-permission")
+                  item.set(f"{{{ns}}}name", permission)
+                  node.insert(0, item)
+          app = node.find("application")
+          if app is not None:
+              app.set(f"{{{ns}}}label", "Arte In Ferro Lascari")
+          tree.write(manifest, encoding="utf-8", xml_declaration=True)
+
+          gradle = root / "android/app/build.gradle.kts"
+          text = gradle.read_text(encoding="utf-8")
+          text = re.sub(
+              r'applicationId\s*=\s*"[^"]+"',
+              'applicationId = "it.arteinferrolascari.mobile"',
+              text,
+          )
+
+          raw = os.environ.get("KEYSTORE_BASE64", "").strip()
+          if raw:
+              try:
+                  data = base64.b64decode(raw)
+              except Exception:
+                  data = bytes.fromhex(raw)
+              (root / "android/app/arte-in-ferro-upload.jks").write_bytes(data)
+              (root / "android/key.properties").write_text(
+                  "storePassword=" + os.environ["KEYSTORE_PASSWORD"] + "\n"
+                  "keyPassword=" + os.environ["KEY_PASSWORD"] + "\n"
+                  "keyAlias=" + os.environ["KEY_ALIAS"] + "\n"
+                  "storeFile=arte-in-ferro-upload.jks\n",
+                  encoding="utf-8",
+              )
+
+              if "import java.util.Properties" not in text:
+                  text = "import java.util.Properties\n\n" + text
+
+              loader = (
+                  'val keystoreProperties = Properties()\n'
+                  'val keystorePropertiesFile = rootProject.file("key.properties")\n'
+                  'if (keystorePropertiesFile.exists()) {\n'
+                  '    keystorePropertiesFile.inputStream().use { '
+                  'keystoreProperties.load(it) }\n'
+                  '}\n\n'
+              )
+              if "val keystoreProperties =" not in text:
+                  text = text.replace("android {", loader + "android {", 1)
+
+              signing = (
+                  '    signingConfigs {\n'
+                  '        create("release") {\n'
+                  '            keyAlias = keystoreProperties["keyAlias"] as String?\n'
+                  '            keyPassword = keystoreProperties["keyPassword"] as String?\n'
+                  '            storeFile = keystoreProperties["storeFile"]?.let { file(it) }\n'
+                  '            storePassword = keystoreProperties["storePassword"] as String?\n'
+                  '        }\n'
+                  '    }\n\n'
+              )
+              if 'create("release")' not in text:
+                  text = text.replace(
+                      "    buildTypes {",
+                      signing + "    buildTypes {",
+                      1,
+                  )
+              text = text.replace(
+                  'signingConfig = signingConfigs.getByName("debug")',
+                  'signingConfig = signingConfigs.getByName("release")',
+              )
+
+          gradle.write_text(text, encoding="utf-8")
+          PY
+      - name: Configurazione Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          printf '{"SUPABASE_URL":"%s","SUPABASE_PUBLISHABLE_KEY":"%s"}' \
+            "$SUPABASE_URL" "$SUPABASE_PUBLISHABLE_KEY" > build-defines.json
+      - run: flutter build apk --release --dart-define-from-file=build-defines.json
+      - run: flutter build appbundle --release --dart-define-from-file=build-defines.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arte-in-ferro-mobile-v2-apk
+          path: apps/mobile_v2/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arte-in-ferro-mobile-v2-aab
+          path: apps/mobile_v2/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
+
+  iphone:
+    name: App iPhone nativa
+    needs: verifica
+    runs-on: macos-latest
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: apps/mobile_v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Genera iPhone
+        run: |
+          cp -R lib "$RUNNER_TEMP/v2-lib"
+          cp pubspec.yaml "$RUNNER_TEMP/v2-pubspec.yaml"
+          flutter create --platforms=android,ios \
+            --org it.arteinferrolascari \
+            --project-name arte_in_ferro_mobile_v2 .
+          rm -rf lib
+          cp -R "$RUNNER_TEMP/v2-lib" lib
+          cp "$RUNNER_TEMP/v2-pubspec.yaml" pubspec.yaml
+          flutter pub get
+      - name: Configura iPhone
+        run: |
+          python3 - <<'PY'
+          import pathlib, plistlib, re
+          root = pathlib.Path(".")
+          info = root / "ios/Runner/Info.plist"
+          with info.open("rb") as stream:
+              values = plistlib.load(stream)
+          values["CFBundleDisplayName"] = "Arte In Ferro Lascari"
+          values["NSCameraUsageDescription"] = (
+              "La fotocamera serve per allegare fotografie ai rapportini."
+          )
+          values["NSPhotoLibraryUsageDescription"] = (
+              "L’accesso alle foto serve per allegare immagini ai rapportini."
+          )
+          values["NSLocationWhenInUseUsageDescription"] = (
+              "La posizione viene acquisita durante le timbrature."
+          )
+          values["ITSAppUsesNonExemptEncryption"] = False
+          with info.open("wb") as stream:
+              plistlib.dump(values, stream, sort_keys=False)
+
+          project = root / "ios/Runner.xcodeproj/project.pbxproj"
+          text = project.read_text(encoding="utf-8")
+          text = re.sub(
+              r'PRODUCT_BUNDLE_IDENTIFIER = [^;]+;',
+              'PRODUCT_BUNDLE_IDENTIFIER = it.arteinferrolascari.mobile;',
+              text,
+          )
+          project.write_text(text, encoding="utf-8")
+          PY
+      - name: Configurazione Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          printf '{"SUPABASE_URL":"%s","SUPABASE_PUBLISHABLE_KEY":"%s"}' \
+            "$SUPABASE_URL" "$SUPABASE_PUBLISHABLE_KEY" > build-defines.json
+      - run: flutter build ios --release --no-codesign --dart-define-from-file=build-defines.json
+      - run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app ArteInFerro-Mobile-V2-iPhone.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arte-in-ferro-mobile-v2-iphone
+          path: apps/mobile_v2/ArteInFerro-Mobile-V2-iPhone.zip
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,35 @@
+ARTE IN FERRO MOBILE V2 - PROGETTO NUOVO DA ZERO
+
+Il pacchetto contiene due cartelle:
+- apps
+- .github
+
+Non contiene programmi da eseguire, Python, Git da terminale o file CMD.
+
+COPIA NEL REPOSITORY
+1. Estrai questo ZIP.
+2. Apri la cartella estratta.
+3. Seleziona le cartelle "apps" e ".github".
+4. Copiale.
+5. In GitHub Desktop premi Repository > Show in Explorer.
+6. Incollale nella cartella rapportini-arte-in-ferro.
+7. Quando Windows chiede di unire le cartelle, conferma.
+
+Non cancellare nulla. La nuova app viene inserita in:
+apps/mobile_v2
+
+La vecchia app rimane separata e non viene modificata.
+
+FUNZIONI
+- login aziendale Supabase;
+- rapportini, foto e firma;
+- presenze GPS in sede, cantiere o trasferta;
+- comunicazioni e conferma lettura;
+- stesso database del gestionale Windows;
+- APK Android;
+- AAB Play Store;
+- build nativa iPhone.
+
+NOTA IPHONE
+La build iPhone è una vera app iOS nativa. Per installarla su iPhone o caricarla
+su TestFlight servono successivamente certificato e profilo Apple Developer.
