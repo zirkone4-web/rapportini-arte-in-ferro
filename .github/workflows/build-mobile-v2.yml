@@ -43,6 +43,7 @@ jobs:
           cp -R "$RUNNER_TEMP/v2-lib" lib
           cp "$RUNNER_TEMP/v2-pubspec.yaml" pubspec.yaml
           cp "$RUNNER_TEMP/v2-analysis.yaml" analysis_options.yaml
+          rm -f test/widget_test.dart
           flutter pub get
       - run: flutter analyze --no-fatal-infos
       - run: flutter test

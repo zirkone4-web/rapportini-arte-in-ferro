@@ -1,0 +1,15 @@
+CORREZIONE FLUTTER MOBILE V2
+
+Questo pacchetto corregge:
+- prefer_is_not_empty in main.dart;
+- cast inutile in main.dart;
+- test Flutter automatico che cercava la classe inesistente MyApp.
+
+COPIA
+1. Estrai lo ZIP.
+2. Copia insieme le cartelle "apps" e ".github".
+3. In GitHub Desktop apri Repository > Show in Explorer.
+4. Incollale nel repository.
+5. Conferma "Sostituisci i file nella destinazione".
+
+Poi crea un nuovo commit e fai Push origin.

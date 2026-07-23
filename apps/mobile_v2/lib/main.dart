@@ -1155,7 +1155,7 @@ class _ReportEditorState extends State<ReportEditor> {
       var signature =
           draft['firma_cliente_url'] as String? ?? report?.signaturePath;
 
-      if (!_signature.isEmpty) {
+      if (_signature.isNotEmpty) {
         final bytes = await _signature.toPngBytes(width: 1000, height: 450);
         if (bytes == null) throw StateError('Firma non disponibile.');
         signature = await widget.service.uploadSignature(
@@ -1581,7 +1581,7 @@ class _AttendancePageState extends State<AttendancePage> {
       if (!mounted) return;
       final config = values[1] as Map<String, dynamic>;
       setState(() {
-        _latest = values[0] as Map<String, dynamic>?;
+        _latest = values[0];
         _company = config['company'] as Map<String, dynamic>?;
         _worksites = List<Map<String, dynamic>>.from(config['worksites'] as List);
         _vehicles = List<Map<String, dynamic>>.from(config['vehicles'] as List);
