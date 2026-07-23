@@ -27,6 +27,7 @@ public partial class App : Application
             var auth = new SupabaseAuthService(_authHttpClient, settings);
             var loginViewModel = new LoginViewModel(auth);
             var loginWindow = new LoginWindow(loginViewModel);
+
             loginViewModel.LoginSucceeded += session =>
             {
                 _apiHttpClient?.Dispose();
@@ -39,9 +40,10 @@ public partial class App : Application
                 var api = new SupabaseApiService(_apiHttpClient, settings, session);
                 var exports = new ExportService(api);
                 var dashboardViewModel = new DashboardViewModel(api, exports);
-                var dashboard = new DashboardWindow(dashboardViewModel, api);
-                MainWindow = dashboard;
-                dashboard.Show();
+                var shell = new MainShellWindow(dashboardViewModel, api);
+
+                MainWindow = shell;
+                shell.Show();
                 loginWindow.Close();
             };
 
