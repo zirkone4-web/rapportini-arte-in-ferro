@@ -1,4 +1,18 @@
-1. Put this entire folder inside the rapportini-arte-in-ferro project folder.
-2. Run APPLICA_CORREZIONE_CODIFICA.cmd.
-3. Wait for ENCODING CORRECTION COMPLETED.
-4. Move this correction folder back out of the repository before committing.
+RICOSTRUZIONE MOBILE INTEGRATA - FASE 1
+
+Questo pacchetto:
+- lavora solo sul ramo ricostruzione-mobile-integrata;
+- non modifica direttamente il ramo main;
+- prepara APK e AAB Android;
+- prepara la compilazione nativa iPhone;
+- crea l’IPA firmata quando saranno configurate le credenziali Apple;
+- migliora la sincronizzazione automatica dei rapportini assegnati dall’ufficio;
+- salva un backup sul Desktop.
+
+ESECUZIONE
+1. Controlla in GitHub Desktop che il ramo corrente sia:
+   ricostruzione-mobile-integrata
+2. Estrai questo ZIP sul Desktop.
+3. Avvia APPLICA_RICOSTRUZIONE_MOBILE.cmd.
+4. Attendi il messaggio RICOSTRUZIONE MOBILE FASE 1 APPLICATA.
+5. Torna su GitHub Desktop.
