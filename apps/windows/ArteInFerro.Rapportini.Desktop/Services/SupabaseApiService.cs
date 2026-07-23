@@ -25,7 +25,7 @@ public sealed class SupabaseApiService
     public async Task<IReadOnlyList<ReportRow>> GetReportsAsync(
         CancellationToken cancellationToken = default)
     {
-        const string select = "id,dipendente_id,cliente_id,luogo,rif_appuntamento," +
+        const string select = "id,dipendente_id,cliente_id,luogo,maps_url,rif_appuntamento," +
             "mezzo_id,targa_mezzo,km_mezzo," +
             "tipologia_intervento,data_ora_inizio,data_ora_fine,ore_totali,descrizione," +
             "firma_cliente_url,gps_latitudine,gps_longitudine,gps_precisione_metri," +
@@ -247,7 +247,7 @@ public sealed class SupabaseApiService
     {
         var payload = await SendAsync(HttpMethod.Get,
             RestUri("v_timbrature_amministrazione") +
-            "?select=*&order=registrata_at.desc&limit=500", null, cancellationToken);
+            "?select=*&order=registrata_at.desc&limit=5000", null, cancellationToken);
         return JsonSerializer.Deserialize<List<AttendanceEventRow>>(payload, _json) ?? [];
     }
 
@@ -614,6 +614,7 @@ public sealed class SupabaseApiService
             ["mezzo_id"] = request.VehicleId,
             ["targa_mezzo"] = EmptyToNull(request.VehiclePlate),
             ["luogo"] = request.Place.Trim(),
+            ["maps_url"] = EmptyToNull(request.MapsUrl),
             ["rif_appuntamento"] = EmptyToNull(request.AppointmentReference),
             ["tipologia_intervento"] = request.InterventionType,
             ["data_ora_inizio"] = request.StartAt.ToUniversalTime().ToString("O"),
@@ -659,6 +660,37 @@ public sealed class SupabaseApiService
                 collaborators,
                 cancellationToken,
                 upsert: true);
+        }
+
+        var recipients = request.CollaboratorIds
+            .Append(request.EmployeeId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct()
+            .ToArray();
+        try
+        {
+            await SendAsync(
+                HttpMethod.Post,
+                $"{_settings.SupabaseUrl.TrimEnd('/')}/functions/v1/notifiche-push",
+                new Dictionary<string, object?>
+                {
+                    ["recipient_ids"] = recipients,
+                    ["title"] = request.IsPlanned
+                        ? "Nuovo lavoro assegnato"
+                        : "Nuovo rapportino assegnato",
+                    ["body"] = $"{request.Place} · {request.StartAt.LocalDateTime:dd/MM/yyyy HH:mm}",
+                    ["data"] = new Dictionary<string, object?>
+                    {
+                        ["type"] = "rapportino",
+                        ["report_id"] = reportId
+                    }
+                },
+                cancellationToken);
+        }
+        catch (Exception)
+        {
+            // Il rapportino è già stato creato: un problema temporaneo del push
+            // non deve provocare un duplicato al successivo tentativo dell'ufficio.
         }
     }
 

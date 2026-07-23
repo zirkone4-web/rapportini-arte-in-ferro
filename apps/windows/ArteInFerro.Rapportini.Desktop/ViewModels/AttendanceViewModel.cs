@@ -12,7 +12,11 @@ public partial class AttendanceViewModel : ObservableObject
 {
     private static readonly CultureInfo Italian = CultureInfo.GetCultureInfo("it-IT");
     private readonly SupabaseApiService _api;
+    private List<AttendanceRow> _allDays = [];
+    private List<AttendanceEventRow> _allEvents = [];
+    private List<LookupItem> _allEmployees = [];
 
+    [ObservableProperty] private AttendanceGridRow? _selectedGridRow;
     [ObservableProperty] private AttendanceRow? _selectedDay;
     [ObservableProperty] private AttendanceEventRow? _selectedEvent;
     [ObservableProperty] private LookupItem? _selectedEmployee;
@@ -21,8 +25,11 @@ public partial class AttendanceViewModel : ObservableObject
     [ObservableProperty] private string _eventDateTimeText = string.Empty;
     [ObservableProperty] private string _forceDateTimeText = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
     [ObservableProperty] private string _reason = string.Empty;
-    [ObservableProperty] private string _message = "Seleziona una riga per modificarla.";
+    [ObservableProperty] private string _message = "Caricamento presenze…";
     [ObservableProperty] private bool _isBusy;
+    [ObservableProperty] private DateTime _periodDate = DateTime.Today;
+    [ObservableProperty] private string _periodMode = "day";
+    [ObservableProperty] private string _periodLabel = string.Empty;
 
     public AttendanceViewModel(SupabaseApiService api)
     {
@@ -34,10 +41,25 @@ public partial class AttendanceViewModel : ObservableObject
         _ = LoadAsync();
     }
 
-    public ObservableCollection<AttendanceRow> Days { get; } = [];
+    public ObservableCollection<AttendanceGridRow> GridRows { get; } = [];
     public ObservableCollection<AttendanceEventRow> Events { get; } = [];
     public ObservableCollection<LookupItem> Employees { get; } = [];
     public ObservableCollection<LookupItem> HoursStatuses { get; } = [];
+
+    partial void OnSelectedGridRowChanged(AttendanceGridRow? value)
+    {
+        if (value is null) return;
+        SelectedEmployee = Employees.FirstOrDefault(x => x.Id == value.EmployeeId);
+        var day = value.ReferenceDay ?? PeriodDate.Date;
+        SelectedDay = _allDays.FirstOrDefault(x =>
+            x.EmployeeId == value.EmployeeId && x.Day.Date == day.Date);
+        if (SelectedDay is null)
+        {
+            AuthorizedHoursText = string.Empty;
+            SelectedHoursStatus = HoursStatuses[0];
+            Reason = string.Empty;
+        }
+    }
 
     partial void OnSelectedDayChanged(AttendanceRow? value)
     {
@@ -65,16 +87,158 @@ public partial class AttendanceViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var days = await _api.GetAttendanceAsync();
-            var events = await _api.GetAttendanceEventsAsync();
-            var employees = await _api.GetEmployeesAsync();
-            Days.Clear(); foreach (var row in days) Days.Add(row);
-            Events.Clear(); foreach (var row in events) Events.Add(row);
-            Employees.Clear(); foreach (var row in employees) Employees.Add(row);
-            Message = $"{Days.Count} giornate · {Events.Count} timbrature";
+            _allDays = (await _api.GetAttendanceAsync()).ToList();
+            _allEvents = (await _api.GetAttendanceEventsAsync()).ToList();
+            _allEmployees = (await _api.GetEmployeesAsync()).ToList();
+            Employees.Clear();
+            foreach (var row in _allEmployees) Employees.Add(row);
+            RefreshPeriod();
         }
         catch (Exception ex) { Message = ex.Message; }
         finally { IsBusy = false; }
+    }
+
+    [RelayCommand]
+    private void SetPeriod(string mode)
+    {
+        if (mode is not ("day" or "week" or "month" or "year")) return;
+        PeriodMode = mode;
+        RefreshPeriod();
+    }
+
+    [RelayCommand]
+    private void PreviousPeriod()
+    {
+        PeriodDate = PeriodMode switch
+        {
+            "week" => PeriodDate.AddDays(-7),
+            "month" => PeriodDate.AddMonths(-1),
+            "year" => PeriodDate.AddYears(-1),
+            _ => PeriodDate.AddDays(-1)
+        };
+        RefreshPeriod();
+    }
+
+    [RelayCommand]
+    private void NextPeriod()
+    {
+        PeriodDate = PeriodMode switch
+        {
+            "week" => PeriodDate.AddDays(7),
+            "month" => PeriodDate.AddMonths(1),
+            "year" => PeriodDate.AddYears(1),
+            _ => PeriodDate.AddDays(1)
+        };
+        RefreshPeriod();
+    }
+
+    [RelayCommand]
+    private void Today()
+    {
+        PeriodDate = DateTime.Today;
+        RefreshPeriod();
+    }
+
+    private void RefreshPeriod()
+    {
+        var (start, end) = PeriodRange();
+        PeriodLabel = PeriodMode switch
+        {
+            "week" => $"{start:dd/MM/yyyy} – {end.AddDays(-1):dd/MM/yyyy}",
+            "month" => start.ToString("MMMM yyyy", Italian),
+            "year" => start.ToString("yyyy", Italian),
+            _ => start.ToString("dddd dd MMMM yyyy", Italian)
+        };
+
+        var selectedEmployeeId = SelectedGridRow?.EmployeeId;
+        var periodDays = _allDays
+            .Where(row => row.Day.Date >= start && row.Day.Date < end)
+            .ToList();
+        var periodEvents = _allEvents
+            .Where(row => row.RegisteredAt.LocalDateTime.Date >= start &&
+                          row.RegisteredAt.LocalDateTime.Date < end)
+            .OrderByDescending(row => row.RegisteredAt)
+            .ToList();
+
+        GridRows.Clear();
+        var expectedDays = CountExpectedDays(start, end);
+        foreach (var employee in _allEmployees.OrderBy(item => item.Label))
+        {
+            var rows = periodDays.Where(row => row.EmployeeId == employee.Id).ToList();
+            var events = periodEvents.Where(row => row.EmployeeId == employee.Id).ToList();
+            var workedDays = rows.Count(row => row.FirstEntry is not null || (row.TotalHours ?? 0) > 0);
+            var firstEntry = events.Where(row => row.Type == "entrata")
+                .Select(row => (DateTimeOffset?)row.RegisteredAt).Min();
+            var lastExit = events.Where(row => row.Type == "uscita")
+                .Select(row => (DateTimeOffset?)row.RegisteredAt).Max();
+            var totalHours = rows.Sum(row => row.TotalHours ?? 0);
+            var compensation = rows.Sum(row => row.OvertimeHours ??
+                Math.Max(0, (row.TotalHours ?? 0) - 8));
+            var pendingTransfers = rows.Count(row => row.HasPendingTransfer);
+            var status = StatusForPeriod(rows, events, start, end);
+
+            GridRows.Add(new AttendanceGridRow
+            {
+                EmployeeId = employee.Id,
+                EmployeeName = employee.Label,
+                AccessLabel = "Accesso attivo",
+                StatusLabel = status,
+                FirstEntry = firstEntry,
+                LastExit = lastExit,
+                WorkedDays = workedDays,
+                MissingDays = Math.Max(0, expectedDays - workedDays),
+                TotalHours = totalHours,
+                CompensationHours = compensation,
+                PendingTransfers = pendingTransfers,
+                ReferenceDay = PeriodMode == "day" ? start : rows.FirstOrDefault()?.Day
+            });
+        }
+
+        Events.Clear();
+        foreach (var row in periodEvents) Events.Add(row);
+        SelectedGridRow = GridRows.FirstOrDefault(x => x.EmployeeId == selectedEmployeeId)
+            ?? GridRows.FirstOrDefault();
+        Message = $"{GridRows.Count} dipendenti · {periodEvents.Count} timbrature · periodo {PeriodLabel}";
+    }
+
+    private string StatusForPeriod(
+        IReadOnlyCollection<AttendanceRow> rows,
+        IReadOnlyCollection<AttendanceEventRow> events,
+        DateTime start,
+        DateTime end)
+    {
+        if (rows.Any(row => row.HasRejectedAttendance)) return "Da verificare";
+        if (PeriodMode != "day")
+        {
+            var worked = rows.Count(row => row.FirstEntry is not null || (row.TotalHours ?? 0) > 0);
+            return worked == 0 ? "Senza timbrature" : $"{worked} giorni lavorati";
+        }
+        var latest = events.OrderByDescending(row => row.RegisteredAt).FirstOrDefault();
+        if (latest is null) return start.Date > DateTime.Today ? "Non ancora iniziato" : "Senza timbrature";
+        return latest.Type == "entrata" ? "Presente" : "Uscito";
+    }
+
+    private (DateTime Start, DateTime End) PeriodRange()
+    {
+        var date = PeriodDate.Date;
+        return PeriodMode switch
+        {
+            "week" => (date.AddDays(-(((int)date.DayOfWeek + 6) % 7)),
+                date.AddDays(-(((int)date.DayOfWeek + 6) % 7)).AddDays(7)),
+            "month" => (new DateTime(date.Year, date.Month, 1),
+                new DateTime(date.Year, date.Month, 1).AddMonths(1)),
+            "year" => (new DateTime(date.Year, 1, 1), new DateTime(date.Year + 1, 1, 1)),
+            _ => (date, date.AddDays(1))
+        };
+    }
+
+    private static int CountExpectedDays(DateTime start, DateTime end)
+    {
+        var effectiveEnd = end > DateTime.Today.AddDays(1) ? DateTime.Today.AddDays(1) : end;
+        var count = 0;
+        for (var day = start; day < effectiveEnd; day = day.AddDays(1))
+            if (day.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday)) count++;
+        return count;
     }
 
     [RelayCommand]
@@ -104,8 +268,10 @@ public partial class AttendanceViewModel : ObservableObject
     [RelayCommand]
     private async Task AuthorizeHoursAsync()
     {
+        if (PeriodMode != "day")
+        { Message = "L'autorizzazione delle ore si effettua nella visualizzazione Giorno."; return; }
         if (SelectedDay is null || SelectedHoursStatus is null)
-        { Message = "Seleziona una giornata."; return; }
+        { Message = "Il dipendente selezionato non ha timbrature nella giornata."; return; }
         decimal? hours = null;
         if (!string.IsNullOrWhiteSpace(AuthorizedHoursText))
         {

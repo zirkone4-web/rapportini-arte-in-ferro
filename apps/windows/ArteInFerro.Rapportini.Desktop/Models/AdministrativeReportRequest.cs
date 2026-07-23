@@ -9,6 +9,7 @@ public sealed class AdministrativeReportRequest
     public string? VehicleId { get; init; }
     public string? VehiclePlate { get; init; }
     public required string Place { get; init; }
+    public string? MapsUrl { get; init; }
     public string? AppointmentReference { get; init; }
     public required string InterventionType { get; init; }
     public required DateTimeOffset StartAt { get; init; }

@@ -88,6 +88,7 @@ class Rapportino extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.rifAppuntamento,
+    this.mapsUrl,
     this.mezzoId,
     this.targaMezzo,
     this.kmMezzo,
@@ -117,6 +118,7 @@ class Rapportino extends Equatable {
       clienteNome: map['cliente_nome'] as String? ?? 'Cliente',
       luogo: map['luogo']! as String,
       rifAppuntamento: map['rif_appuntamento'] as String?,
+      mapsUrl: map['maps_url'] as String?,
       mezzoId: map['mezzo_id'] as String?,
       targaMezzo: map['targa_mezzo'] as String?,
       kmMezzo: map['km_mezzo'] as int?,
@@ -153,6 +155,7 @@ class Rapportino extends Equatable {
   final String clienteNome;
   final String luogo;
   final String? rifAppuntamento;
+  final String? mapsUrl;
   final String? mezzoId;
   final String? targaMezzo;
   final int? kmMezzo;
@@ -191,6 +194,7 @@ class Rapportino extends Equatable {
         'cliente_id': clienteId,
         'cliente_nome': clienteNome,
         'luogo': luogo,
+        'maps_url': mapsUrl,
         'rif_appuntamento': rifAppuntamento,
         'mezzo_id': mezzoId,
         'targa_mezzo': targaMezzo,
@@ -224,6 +228,7 @@ class Rapportino extends Equatable {
         'dipendente_id': dipendenteId,
         'cliente_id': clienteId,
         'luogo': luogo,
+        'maps_url': mapsUrl,
         'rif_appuntamento': rifAppuntamento,
         'mezzo_id': mezzoId,
         'targa_mezzo': targaMezzo,
@@ -245,6 +250,7 @@ class Rapportino extends Equatable {
       };
 
   Rapportino copyWith({
+    String? mapsUrl,
     String? firmaLocalePath,
     String? firmaRemotePath,
     StatoRapportino? stato,
@@ -265,6 +271,7 @@ class Rapportino extends Equatable {
       clienteNome: clienteNome,
       luogo: luogo,
       rifAppuntamento: rifAppuntamento,
+      mapsUrl: mapsUrl ?? this.mapsUrl,
       mezzoId: mezzoId,
       targaMezzo: targaMezzo,
       kmMezzo: kmMezzo,
@@ -303,6 +310,7 @@ class Rapportino extends Equatable {
         clienteNome,
         luogo,
         rifAppuntamento,
+        mapsUrl,
         mezzoId,
         targaMezzo,
         kmMezzo,

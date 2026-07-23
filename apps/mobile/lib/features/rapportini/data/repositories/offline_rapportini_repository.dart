@@ -147,6 +147,7 @@ class OfflineRapportiniRepository implements RapportiniRepository {
     return remote['dipendente_id'] == local.dipendenteId &&
         remote['cliente_id'] == local.clienteId &&
         remote['luogo'] == local.luogo &&
+        remote['maps_url'] == local.mapsUrl &&
         remote['rif_appuntamento'] == local.rifAppuntamento &&
         remote['mezzo_id'] == local.mezzoId &&
         remote['targa_mezzo'] == local.targaMezzo &&
@@ -237,6 +238,7 @@ class OfflineRapportiniRepository implements RapportiniRepository {
       clienteId: json['cliente_id'] as String,
       clienteNome: clienteNome,
       luogo: json['luogo'] as String,
+      mapsUrl: json['maps_url'] as String?,
       rifAppuntamento: json['rif_appuntamento'] as String?,
       mezzoId: json['mezzo_id'] as String?,
       targaMezzo: json['targa_mezzo'] as String?,

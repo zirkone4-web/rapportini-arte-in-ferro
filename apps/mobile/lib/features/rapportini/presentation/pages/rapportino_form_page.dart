@@ -15,6 +15,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:signature/signature.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 class RapportinoFormPage extends StatefulWidget {
@@ -37,6 +38,7 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
 
   late final String _id;
   late final TextEditingController _luogoController;
+  late final TextEditingController _mapsUrlController;
   late final TextEditingController _riferimentoController;
   late final TextEditingController _targaController;
   late final TextEditingController _kmController;
@@ -64,6 +66,7 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
     final report = widget.rapportino;
     _id = report?.id ?? _uuid.v4();
     _luogoController = TextEditingController(text: report?.luogo);
+    _mapsUrlController = TextEditingController(text: report?.mapsUrl);
     _riferimentoController = TextEditingController(
       text: report?.rifAppuntamento,
     );
@@ -94,6 +97,7 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
   @override
   void dispose() {
     _luogoController.dispose();
+    _mapsUrlController.dispose();
     _riferimentoController.dispose();
     _targaController.dispose();
     _kmController.dispose();
@@ -240,10 +244,46 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
                       enabled: !_busy,
                       textCapitalization: TextCapitalization.words,
                       decoration: const InputDecoration(
-                        labelText: 'Luogo / cantiere *',
+                        labelText: 'Luogo / cantiere',
+                        helperText: 'Scrivi il luogo oppure usa Google Maps',
                         prefixIcon: Icon(Icons.location_on_outlined),
                       ),
                       validator: _validateLuogo,
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _busy ? null : _useCurrentPosition,
+                          icon: const Icon(Icons.my_location_outlined),
+                          label: const Text('USA POSIZIONE ATTUALE'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _busy ? null : _openGoogleMaps,
+                          icon: const Icon(Icons.map_outlined),
+                          label: const Text('APRI GOOGLE MAPS'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _mapsUrlController,
+                      enabled: !_busy,
+                      keyboardType: TextInputType.url,
+                      decoration: const InputDecoration(
+                        labelText: 'Link Google Maps (facoltativo)',
+                        hintText: 'https://maps.app.goo.gl/…',
+                        prefixIcon: Icon(Icons.link_outlined),
+                      ),
+                      validator: (value) {
+                        final text = value?.trim() ?? '';
+                        if (text.isEmpty) return null;
+                        return _isValidMapsUrl(text)
+                            ? null
+                            : 'Inserisci un link Google Maps valido';
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -528,10 +568,57 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
 
   String? _validateLuogo(String? value) {
     final text = value?.trim() ?? '';
-    if (text.length < 2) {
-      return 'Inserisci il luogo o il cantiere (almeno 2 caratteri)';
+    if (text.length >= 2) return null;
+    if (_isValidMapsUrl(_mapsUrlController.text.trim())) return null;
+    return 'Scrivi il luogo oppure inserisci un link Google Maps';
+  }
+
+  bool _isValidMapsUrl(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri == null || !uri.hasScheme) return false;
+    final host = uri.host.toLowerCase();
+    return host.contains('google.') ||
+        host == 'maps.app.goo.gl' ||
+        host.endsWith('.google.com');
+  }
+
+  Future<void> _useCurrentPosition() async {
+    _setBusy(true, 'Rilevamento posizione…');
+    try {
+      final location = await context.read<LocationService>().capture();
+      final url = 'https://www.google.com/maps/search/?api=1&query='
+          '${location.latitude},${location.longitude}';
+      if (!mounted) return;
+      setState(() {
+        _mapsUrlController.text = url;
+        if (_luogoController.text.trim().isEmpty) {
+          _luogoController.text = 'Posizione Google Maps';
+        }
+      });
+    } on Object catch (error) {
+      _showError(error);
+    } finally {
+      _setBusy(false);
     }
-    return null;
+  }
+
+  Future<void> _openGoogleMaps() async {
+    final saved = _mapsUrlController.text.trim();
+    final Uri uri;
+    if (_isValidMapsUrl(saved)) {
+      uri = Uri.parse(saved);
+    } else {
+      final query = _luogoController.text.trim();
+      uri = Uri.https(
+        'www.google.com',
+        '/maps/search/',
+        {'api': '1', 'query': query.isEmpty ? 'Italia' : query},
+      );
+    }
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      _showError(const AppException('Non riesco ad aprire Google Maps.'));
+    }
   }
 
   Future<void> _createCliente() async {
@@ -789,7 +876,10 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
         dipendenteId: existing?.dipendenteId ?? widget.user.id,
         clienteId: cliente.id,
         clienteNome: cliente.ragioneSociale,
-        luogo: _luogoController.text.trim(),
+        luogo: _luogoController.text.trim().isEmpty
+            ? 'Posizione Google Maps'
+            : _luogoController.text.trim(),
+        mapsUrl: _emptyToNull(_mapsUrlController.text),
         rifAppuntamento: _emptyToNull(_riferimentoController.text),
         mezzoId: _mezzoId,
         targaMezzo: _emptyToNull(_targaController.text)?.toUpperCase(),

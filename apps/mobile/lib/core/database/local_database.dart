@@ -12,7 +12,7 @@ class LocalDatabase {
     final root = await getDatabasesPath();
     _database = await openDatabase(
       p.join(root, 'arte_in_ferro_rapportini.db'),
-      version: 5,
+      version: 6,
       onConfigure: (database) => database.execute('PRAGMA foreign_keys = ON'),
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -47,6 +47,7 @@ class LocalDatabase {
         cliente_id TEXT NOT NULL,
         cliente_nome TEXT NOT NULL,
         luogo TEXT NOT NULL,
+        maps_url TEXT,
         rif_appuntamento TEXT,
         mezzo_id TEXT,
         targa_mezzo TEXT,
@@ -145,6 +146,11 @@ class LocalDatabase {
         'ALTER TABLE rapportini ADD COLUMN nota_lavoro_incompleto TEXT',
       );
     }
+    if (oldVersion < 6) {
+      await database.execute(
+        'ALTER TABLE rapportini ADD COLUMN maps_url TEXT',
+      );
+    }
   }
 
   Future<void> _createProfileTable(Database database) {
@@ -196,7 +202,18 @@ class LocalDatabase {
   }
 
   Future<void> replaceClienti(List<Cliente> clienti) async {
+    // Un risultato remoto vuoto non deve cancellare la cache in caso di errore
+    // o risposta incompleta del servizio.
+    if (clienti.isEmpty) return;
+
+    String normalize(String value) => value
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), ' ');
+
     await _db.transaction((transaction) async {
+      // Prima inserisce i record cloud: in questo modo i nuovi UUID esistono già
+      // quando vengono riallineati i rapportini salvati sul telefono.
       for (final cliente in clienti) {
         await transaction.insert(
           'clienti',
@@ -204,6 +221,40 @@ class LocalDatabase {
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
+
+      final incomingIds = clienti.map((item) => item.id).toSet();
+      final incomingByName = <String, Cliente>{
+        for (final item in clienti) normalize(item.ragioneSociale): item,
+      };
+      final reports = await transaction.query(
+        'rapportini',
+        columns: ['id', 'cliente_id', 'cliente_nome'],
+      );
+
+      for (final row in reports) {
+        final currentId = row['cliente_id'] as String?;
+        if (currentId == null || incomingIds.contains(currentId)) continue;
+        final currentName = row['cliente_nome'] as String? ?? '';
+        final replacement = incomingByName[normalize(currentName)];
+        if (replacement == null) continue;
+        await transaction.update(
+          'rapportini',
+          {
+            'cliente_id': replacement.id,
+            'cliente_nome': replacement.ragioneSociale,
+          },
+          where: 'id = ?',
+          whereArgs: [row['id']],
+        );
+      }
+
+      final placeholders = List.filled(incomingIds.length, '?').join(',');
+      await transaction.delete(
+        'clienti',
+        where: 'id NOT IN ($placeholders) '
+            'AND id NOT IN (SELECT cliente_id FROM rapportini)',
+        whereArgs: incomingIds.toList(growable: false),
+      );
     });
   }
 

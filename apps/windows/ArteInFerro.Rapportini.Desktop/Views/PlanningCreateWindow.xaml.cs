@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -99,9 +100,10 @@ public partial class PlanningCreateWindow : Window
                 "Orari non validi", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
-        if (PlaceText.Text.Trim().Length < 2 || DescriptionText.Text.Trim().Length < 3)
+        if ((PlaceText.Text.Trim().Length < 2 && !IsMapsUrl(MapsUrlText.Text)) ||
+            DescriptionText.Text.Trim().Length < 3)
         {
-            MessageBox.Show("Inserisci luogo e attività da eseguire.",
+            MessageBox.Show("Inserisci il luogo oppure un link Google Maps, e l'attività da eseguire.",
                 "Dati mancanti", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -119,7 +121,10 @@ public partial class PlanningCreateWindow : Window
             ClientId = client.Id,
             VehicleId = vehicle?.Id,
             VehiclePlate = vehicle is null ? null : VehiclePlate(vehicle.Label),
-            Place = PlaceText.Text.Trim(),
+            Place = PlaceText.Text.Trim().Length >= 2
+                ? PlaceText.Text.Trim()
+                : "Posizione Google Maps",
+            MapsUrl = IsMapsUrl(MapsUrlText.Text) ? MapsUrlText.Text.Trim() : null,
             AppointmentReference = null,
             InterventionType = intervention.Id,
             StartAt = startAt,
@@ -151,6 +156,23 @@ public partial class PlanningCreateWindow : Window
             StatusText.Text = ex.Message;
             IsEnabled = true;
         }
+    }
+
+    private void OpenGoogleMapsClick(object sender, RoutedEventArgs e)
+    {
+        var existing = MapsUrlText.Text.Trim();
+        var url = IsMapsUrl(existing)
+            ? existing
+            : $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(PlaceText.Text.Trim().Length > 0 ? PlaceText.Text.Trim() : "Italia")}";
+        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        StatusText.Text = "Scegli il punto in Google Maps e incolla il link condiviso nel campo dedicato.";
+    }
+
+    private static bool IsMapsUrl(string? value)
+    {
+        if (!Uri.TryCreate(value?.Trim(), UriKind.Absolute, out var uri)) return false;
+        var host = uri.Host.ToLowerInvariant();
+        return host.Contains("google.") || host == "maps.app.goo.gl" || host.EndsWith(".google.com");
     }
 
     private static LookupItem? ResolveLookup(

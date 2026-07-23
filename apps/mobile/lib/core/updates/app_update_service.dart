@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AppUpdateService {
-  static const currentVersion = '0.7.1';
+  static const currentVersion = '0.7.2';
 
   Future<void> check(BuildContext context) async {
     try {

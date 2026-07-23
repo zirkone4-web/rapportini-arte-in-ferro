@@ -16,6 +16,9 @@ public sealed class ReportRow
     [JsonPropertyName("luogo")]
     public string Place { get; set; } = string.Empty;
 
+    [JsonPropertyName("maps_url")]
+    public string? MapsUrl { get; set; }
+
     [JsonPropertyName("rif_appuntamento")]
     public string? AppointmentReference { get; set; }
 
