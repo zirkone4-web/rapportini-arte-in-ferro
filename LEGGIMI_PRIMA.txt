@@ -1,0 +1,10 @@
+VERSIONE DEFINITIVA SENZA GIT E SENZA PYTHON
+
+1. Verifica in GitHub Desktop che il ramo corrente sia:
+   ricostruzione-mobile-integrata
+2. Estrai questo ZIP.
+3. Avvia APPLICA_MOBILE_SENZA_GIT.cmd.
+4. Attendi RICOSTRUZIONE MOBILE FASE 1 APPLICATA.
+
+Il programma riconosce il ramo leggendo direttamente i file del progetto.
+Non richiede Git da terminale e non richiede Python.

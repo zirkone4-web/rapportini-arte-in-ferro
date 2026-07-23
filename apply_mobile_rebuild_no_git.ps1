@@ -580,28 +580,33 @@ if __name__ == "__main__":
 
 try {
     $repo = Find-Repo
-    $branch = (& git -C $repo rev-parse --abbrev-ref HEAD).Trim()
-    if ($branch -ne "ricostruzione-mobile-integrata") {
-        throw "Ramo non corretto: $branch. Seleziona ricostruzione-mobile-integrata in GitHub Desktop."
+
+    $gitMarker = Join-Path $repo ".git"
+    if (Test-Path $gitMarker -PathType Container) {
+        $headPath = Join-Path $gitMarker "HEAD"
+    }
+    elseif (Test-Path $gitMarker -PathType Leaf) {
+        $gitLine = [System.IO.File]::ReadAllText($gitMarker).Trim()
+        if (-not $gitLine.StartsWith("gitdir:")) {
+            throw "Cartella Git non riconosciuta."
+        }
+        $gitDirectory = $gitLine.Substring(7).Trim()
+        if (-not [System.IO.Path]::IsPathRooted($gitDirectory)) {
+            $gitDirectory = Join-Path $repo $gitDirectory
+        }
+        $headPath = Join-Path $gitDirectory "HEAD"
+    }
+    else {
+        throw "Cartella Git non trovata."
     }
 
-    $statusLines = @(& git -C $repo status --porcelain --untracked-files=all)
-    $allowedInstallerNames = @(
-        "apply_mobile_rebuild.ps1",
-        "APPLICA_RICOSTRUZIONE_MOBILE_SENZA_PYTHON.cmd",
-        "APPLICA_RICOSTRUZIONE_MOBILE_CORRETTA.cmd"
-    )
-    $unexpectedStatus = @(
-        $statusLines | Where-Object {
-            $line = $_
-            if ([string]::IsNullOrWhiteSpace($line)) { return $false }
-            $path = $line.Substring(3).Trim().Replace("\", "/")
-            $name = [System.IO.Path]::GetFileName($path)
-            return $allowedInstallerNames -notcontains $name
-        }
-    )
-    if ($unexpectedStatus.Count -gt 0) {
-        throw "Ci sono altre modifiche locali non salvate. Apri GitHub Desktop e controllale prima di continuare."
+    $head = [System.IO.File]::ReadAllText($headPath).Trim()
+    if (-not $head.StartsWith("ref: refs/heads/")) {
+        throw "Il progetto non si trova su un ramo Git normale."
+    }
+    $branch = $head.Substring("ref: refs/heads/".Length)
+    if ($branch -ne "ricostruzione-mobile-integrata") {
+        throw "Ramo non corretto: $branch. Seleziona ricostruzione-mobile-integrata in GitHub Desktop."
     }
 
     $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -727,6 +732,24 @@ try {
 '@
     $page = Replace-Once $page $initOld $initNew "sincronizzazione automatica"
     Write-Utf8NoBom $pagePath $page
+
+    $originalReadme = @'
+1. Put this entire folder inside the rapportini-arte-in-ferro project folder.
+2. Run APPLICA_CORREZIONE_CODIFICA.cmd.
+3. Wait for ENCODING CORRECTION COMPLETED.
+4. Move this correction folder back out of the repository before committing.
+'@
+    Write-Utf8NoBom (Join-Path $repo "LEGGIMI.txt") $originalReadme
+
+    foreach ($oldHelper in @(
+        "APPLICA_RICOSTRUZIONE_MOBILE.cmd",
+        "apply_mobile_rebuild.py"
+    )) {
+        $oldHelperPath = Join-Path $repo $oldHelper
+        if (Test-Path $oldHelperPath) {
+            Remove-Item $oldHelperPath -Force
+        }
+    }
 
     Write-Host ""
     Write-Host "RICOSTRUZIONE MOBILE FASE 1 APPLICATA." -ForegroundColor Green

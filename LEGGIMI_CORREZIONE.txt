@@ -1,0 +1,8 @@
+VERSIONE CORRETTA - NON RICHIEDE PYTHON
+
+1. Estrai i due file.
+2. Avvia APPLICA_RICOSTRUZIONE_MOBILE_CORRETTA.cmd.
+3. Attendi RICOSTRUZIONE MOBILE FASE 1 APPLICATA.
+
+Può essere eseguita anche se i file sono stati estratti direttamente
+nella cartella rapportini-arte-in-ferro.
