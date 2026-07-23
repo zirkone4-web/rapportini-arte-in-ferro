@@ -110,6 +110,13 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
     if (_clienteId == null && clienti.isNotEmpty) {
       _clienteId = clienti.first.id;
     }
+    var selectedClientName = '';
+    for (final cliente in clienti) {
+      if (cliente.id == _clienteId) {
+        selectedClientName = cliente.ragioneSociale;
+        break;
+      }
+    }
 
     return PopScope(
       canPop: !_busy,
@@ -159,28 +166,42 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
                       number: 1,
                       title: 'Cliente e intervento',
                     ),
-                    DropdownButtonFormField<String>(
-                      initialValue: _clienteId,
-                      decoration: const InputDecoration(
-                        labelText: 'Cliente *',
-                        prefixIcon: Icon(Icons.business_outlined),
+                    Autocomplete<Cliente>(
+                      initialValue: TextEditingValue(text: selectedClientName),
+                      displayStringForOption: (cliente) => cliente.ragioneSociale,
+                      optionsBuilder: (textEditingValue) {
+                        final query = textEditingValue.text.trim().toLowerCase();
+                        if (query.isEmpty) return clienti.take(20);
+                        return clienti.where((cliente) {
+                          final search = [
+                            cliente.ragioneSociale,
+                            cliente.referente ?? '',
+                            cliente.indirizzo,
+                          ].join(' ').toLowerCase();
+                          return search.contains(query);
+                        }).take(30);
+                      },
+                      onSelected: (cliente) =>
+                          setState(() => _clienteId = cliente.id),
+                      fieldViewBuilder: (
+                        context,
+                        controller,
+                        focusNode,
+                        onFieldSubmitted,
+                      ) => TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        enabled: !_busy,
+                        decoration: const InputDecoration(
+                          labelText: 'Cliente *',
+                          hintText: 'Digita nome, cognome, referente o località',
+                          prefixIcon: Icon(Icons.search),
+                        ),
+                        onChanged: (_) => _clienteId = null,
+                        validator: (_) => _clienteId == null
+                            ? 'Seleziona un cliente dai risultati'
+                            : null,
                       ),
-                      items: clienti
-                          .map(
-                            (cliente) => DropdownMenuItem(
-                              value: cliente.id,
-                              child: Text(
-                                cliente.ragioneSociale,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(growable: false),
-                      onChanged: _busy
-                          ? null
-                          : (value) => setState(() => _clienteId = value),
-                      validator: (value) =>
-                          value == null ? 'Seleziona il cliente' : null,
                     ),
                     Align(
                       alignment: Alignment.centerRight,
@@ -428,9 +449,9 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
                     _PhotoStrip(foto: _foto),
                     const SizedBox(height: 10),
                     OutlinedButton.icon(
-                      onPressed: _busy ? null : _capturePhoto,
-                      icon: const Icon(Icons.camera_alt_outlined),
-                      label: const Text('SCATTA FOTO'),
+                      onPressed: _busy ? null : _choosePhotoSource,
+                      icon: const Icon(Icons.add_a_photo_outlined),
+                      label: const Text('AGGIUNGI FOTO'),
                     ),
                     const SizedBox(height: 24),
                     const _SectionTitle(number: 5, title: 'Firma cliente'),
@@ -593,6 +614,55 @@ class _RapportinoFormPageState extends State<RapportinoFormPage> {
       indirizzo.dispose();
       referente.dispose();
       telefono.dispose();
+    }
+  }
+
+  Future<void> _choosePhotoSource() async {
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Scatta foto'),
+              onTap: () => Navigator.pop(context, 'camera'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Scegli dalla galleria'),
+              onTap: () => Navigator.pop(context, 'gallery'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == 'camera') await _capturePhoto();
+    if (source == 'gallery') await _selectPhoto();
+  }
+
+  Future<void> _selectPhoto() async {
+    _setBusy(true, 'Importazione fotografia…');
+    try {
+      final path = await context.read<RapportiniCubit>().selectPhoto(_id);
+      if (path != null && mounted) {
+        setState(() {
+          _foto = [
+            ..._foto,
+            RapportinoFoto(
+              id: _uuid.v4(),
+              rapportinoId: _id,
+              localPath: path,
+              createdAt: DateTime.now(),
+            ),
+          ];
+        });
+      }
+    } on Object catch (error) {
+      _showError(error);
+    } finally {
+      _setBusy(false);
     }
   }
 

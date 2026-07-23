@@ -574,6 +574,94 @@ public sealed class SupabaseApiService
             }, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<LookupItem>> GetVehicleLookupAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var payload = await SendAsync(
+            HttpMethod.Get,
+            RestUri("mezzi") + "?select=id,targa,descrizione&attivo=eq.true&order=targa",
+            null,
+            cancellationToken);
+        var rows = JsonSerializer.Deserialize<List<VehicleLookup>>(payload, _json) ?? [];
+        return rows.Select(row => new LookupItem(
+            row.Id,
+            string.IsNullOrWhiteSpace(row.Description)
+                ? row.Plate
+                : $"{row.Plate} · {row.Description}"))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<PlanningWorksiteItem>> GetPlanningWorksitesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var payload = await SendAsync(
+            HttpMethod.Get,
+            RestUri("cantieri") +
+            "?select=id,cliente_id,nome,indirizzo&attivo=eq.true&order=nome",
+            null,
+            cancellationToken);
+        return JsonSerializer.Deserialize<List<PlanningWorksiteItem>>(payload, _json) ?? [];
+    }
+
+    public async Task CreateAdministrativeReportAsync(
+        AdministrativeReportRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var body = new Dictionary<string, object?>
+        {
+            ["dipendente_id"] = request.EmployeeId,
+            ["cliente_id"] = request.ClientId,
+            ["mezzo_id"] = request.VehicleId,
+            ["targa_mezzo"] = EmptyToNull(request.VehiclePlate),
+            ["luogo"] = request.Place.Trim(),
+            ["rif_appuntamento"] = EmptyToNull(request.AppointmentReference),
+            ["tipologia_intervento"] = request.InterventionType,
+            ["data_ora_inizio"] = request.StartAt.ToUniversalTime().ToString("O"),
+            ["data_ora_fine"] = request.EndAt.ToUniversalTime().ToString("O"),
+            ["descrizione"] = request.Description.Trim(),
+            ["stato"] = "bozza",
+            ["pianificato"] = request.IsPlanned,
+            ["pianificato_da"] = request.IsPlanned ? _session.UserId : null,
+            ["pianificato_at"] = request.IsPlanned ? DateTimeOffset.UtcNow.ToString("O") : null,
+            ["note_pianificazione"] = EmptyToNull(request.PlanningNotes),
+            ["esito_lavoro"] = "da_eseguire",
+            ["motivo_modifica"] = request.IsPlanned
+                ? "Pianificazione creata dal gestionale Windows"
+                : "Rapportino creato dal gestionale Windows"
+        };
+
+        var payload = await SendAsync(
+            HttpMethod.Post,
+            RestUri("rapportini") + "?select=id",
+            body,
+            cancellationToken,
+            returnRepresentation: true);
+        var created = JsonSerializer.Deserialize<List<CreatedId>>(payload, _json) ?? [];
+        var reportId = created.SingleOrDefault()?.Id
+            ?? throw new ApiException("Il rapportino non è stato creato.");
+
+        var collaborators = request.CollaboratorIds
+            .Where(id => !string.IsNullOrWhiteSpace(id) && id != request.EmployeeId)
+            .Distinct()
+            .Select(id => new Dictionary<string, object?>
+            {
+                ["rapportino_id"] = reportId,
+                ["dipendente_id"] = id
+            })
+            .ToList();
+
+        if (collaborators.Count > 0)
+        {
+            await SendAsync(
+                HttpMethod.Post,
+                RestUri("rapportino_collaboratori") +
+                "?on_conflict=rapportino_id,dipendente_id",
+                collaborators,
+                cancellationToken,
+                upsert: true);
+        }
+    }
+
     public async Task<ReportRow> UpdateReportAsync(
         ReportRow original,
         ReportUpdate update,
@@ -744,6 +832,19 @@ public sealed class SupabaseApiService
         }
         catch (JsonException) { }
         return "Errore di comunicazione con Supabase.";
+    }
+
+
+    private sealed class VehicleLookup
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = string.Empty;
+
+        [JsonPropertyName("targa")]
+        public string Plate { get; set; } = string.Empty;
+
+        [JsonPropertyName("descrizione")]
+        public string Description { get; set; } = string.Empty;
     }
 
     private sealed class UserLookup

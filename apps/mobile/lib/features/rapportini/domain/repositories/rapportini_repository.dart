@@ -31,6 +31,8 @@ abstract interface class RapportiniRepository {
 
   Future<String?> capturePhoto(String rapportinoId);
 
+  Future<String?> selectPhoto(String rapportinoId);
+
   Future<String> saveSignature(String rapportinoId, Uint8List bytes);
 
   Future<SyncResult> sync(String dipendenteId);

@@ -218,6 +218,10 @@
                                 <StackPanel>
                                     <TextBlock Text="Azioni rapide" FontSize="17"
                                                FontWeight="SemiBold" Margin="0,0,0,10" />
+                                    <Button Content="Pianifica lavoro" Click="NewPlanningClick"
+                                            HorizontalContentAlignment="Left" />
+                                    <Button Content="Nuovo rapportino" Click="NewReportClick"
+                                            HorizontalContentAlignment="Left" />
                                     <Button Content="Nuovo dipendente" Click="NewEmployeeClick"
                                             HorizontalContentAlignment="Left" />
                                     <Button Content="Clienti e cantieri" Click="MasterDataClick"
@@ -284,6 +288,8 @@
                     </Border>
 
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="Nuovo rapportino" Click="NewReportClick"
+                                Background="#CFE7FF" />
                         <Button Content="Apri / modifica / approva" Command="{Binding EditCommand}"
                                 Background="#DDF3E5" />
                         <Button Content="Esporta Excel" Command="{Binding ExportExcelCommand}" />
@@ -323,20 +329,23 @@
                     </Border>
                 </Grid>
 
-                <!-- PIANIFICAZIONE: STRUTTURA PRONTA, FUNZIONE NELLA FASE 2 -->
+                <!-- PIANIFICAZIONE LAVORI -->
                 <Grid x:Name="PlanningPanel" Visibility="Collapsed">
                     <Border Style="{StaticResource CardBorder}" HorizontalAlignment="Stretch"
                             VerticalAlignment="Top" Padding="26">
                         <StackPanel>
                             <TextBlock Text="Pianificazione lavori" Style="{StaticResource SectionTitle}" />
-                            <TextBlock Text="Questa area ospiterà il calendario giornaliero e settimanale."
+                            <TextBlock Text="Crea una giornata singola o di squadra e inviala alle app dei dipendenti."
                                        Foreground="#647483" Margin="0,5,0,18" />
                             <Border Background="#E8F0F7" CornerRadius="10" Padding="18">
                                 <StackPanel>
-                                    <TextBlock Text="Fase successiva" FontWeight="Bold"
+                                    <TextBlock Text="Flusso operativo" FontWeight="Bold"
                                                Foreground="{StaticResource IronBlue}" />
                                     <TextBlock TextWrapping="Wrap" Margin="0,6,0,0"
-                                               Text="Creazione dei rapportini dall'ufficio, scelta di uno o più dipendenti, assegnazione al cantiere e invio alle app Android e iPhone senza modificarle." />
+                                               Text="Scegli responsabile, collaboratori, cliente, cantiere, mezzo, orari e attività. Il lavoro comparirà nell'app come assegnato dall'ufficio." />
+                                    <Button Content="NUOVA PIANIFICAZIONE" Click="NewPlanningClick"
+                                            HorizontalAlignment="Left"
+                                            Background="{StaticResource IronBlue}" Foreground="White" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>

@@ -123,13 +123,22 @@ class _RapportiniViewState extends State<_RapportiniView> {
                 ),
             ],
           ),
-          floatingActionButton: state.clienti.isEmpty
-              ? null
-              : FloatingActionButton.extended(
-                  onPressed: _openForm,
-                  icon: const Icon(Icons.add),
-                  label: const Text('NUOVO'),
-                ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: state.clienti.isEmpty
+                ? () {
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(const SnackBar(
+                        content: Text(
+                          'Nessun cliente disponibile. Controlla il collegamento '
+                          'Supabase oppure crea il cliente dall’ufficio.',
+                        ),
+                      ));
+                  }
+                : _openForm,
+            icon: const Icon(Icons.add),
+            label: const Text('NUOVO RAPPORTINO'),
+          ),
           body: SafeArea(
             child: switch (state.status) {
               RapportiniStatus.initial || RapportiniStatus.loading =>

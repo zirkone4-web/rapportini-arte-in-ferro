@@ -86,6 +86,10 @@ class RapportiniCubit extends Cubit<RapportiniState> {
     return _repository.capturePhoto(rapportinoId);
   }
 
+  Future<String?> selectPhoto(String rapportinoId) {
+    return _repository.selectPhoto(rapportinoId);
+  }
+
   Future<String> saveSignature(String rapportinoId, Uint8List bytes) {
     return _repository.saveSignature(rapportinoId, bytes);
   }

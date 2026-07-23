@@ -40,6 +40,20 @@ public partial class MainShellWindow : Window
     private void PlanningClick(object sender, RoutedEventArgs e) =>
         ShowPanel(PlanningPanel, "Pianificazione lavori");
 
+    private async void NewReportClick(object sender, RoutedEventArgs e)
+    {
+        var window = new PlanningCreateWindow(_api, isPlanned: false) { Owner = this };
+        if (window.ShowDialog() == true)
+            await _viewModel.LoadAsync();
+    }
+
+    private async void NewPlanningClick(object sender, RoutedEventArgs e)
+    {
+        var window = new PlanningCreateWindow(_api, isPlanned: true) { Owner = this };
+        if (window.ShowDialog() == true)
+            await _viewModel.LoadAsync();
+    }
+
     private void ReportDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (_viewModel.EditCommand.CanExecute(null))

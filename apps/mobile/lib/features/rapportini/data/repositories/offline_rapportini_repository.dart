@@ -30,6 +30,11 @@ class OfflineRapportiniRepository implements RapportiniRepository {
   }
 
   @override
+  Future<String?> selectPhoto(String rapportinoId) {
+    return _media.selectAndCompressPhoto(rapportinoId);
+  }
+
+  @override
   Future<List<Cliente>> loadClienti({bool refresh = true}) async {
     if (refresh && await _hasConnection()) {
       try {

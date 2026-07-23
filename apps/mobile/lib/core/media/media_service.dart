@@ -14,9 +14,20 @@ class MediaService {
   final ImagePicker _picker;
   final Uuid _uuid = const Uuid();
 
-  Future<String?> captureAndCompressPhoto(String rapportinoId) async {
+  Future<String?> captureAndCompressPhoto(String rapportinoId) {
+    return _pickAndCompressPhoto(rapportinoId, ImageSource.camera);
+  }
+
+  Future<String?> selectAndCompressPhoto(String rapportinoId) {
+    return _pickAndCompressPhoto(rapportinoId, ImageSource.gallery);
+  }
+
+  Future<String?> _pickAndCompressPhoto(
+    String rapportinoId,
+    ImageSource imageSource,
+  ) async {
     final source = await _picker.pickImage(
-      source: ImageSource.camera,
+      source: imageSource,
       preferredCameraDevice: CameraDevice.rear,
     );
     if (source == null) return null;
