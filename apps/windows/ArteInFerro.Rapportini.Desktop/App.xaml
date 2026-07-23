@@ -3,20 +3,41 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
         <SolidColorBrush x:Key="IronBlue" Color="#12385B" />
+        <SolidColorBrush x:Key="IronBlueDark" Color="#0B2944" />
         <SolidColorBrush x:Key="WarmOrange" Color="#D86A2E" />
+        <SolidColorBrush x:Key="PageBackground" Color="#F3F6F9" />
+        <SolidColorBrush x:Key="BorderLight" Color="#DCE3EA" />
+
         <Style TargetType="Button">
             <Setter Property="MinHeight" Value="38" />
             <Setter Property="Padding" Value="16,7" />
             <Setter Property="Margin" Value="4" />
+            <Setter Property="Cursor" Value="Hand" />
         </Style>
+
         <Style TargetType="TextBox">
             <Setter Property="MinHeight" Value="36" />
             <Setter Property="Padding" Value="8,5" />
             <Setter Property="Margin" Value="0,4,0,10" />
         </Style>
+
         <Style TargetType="ComboBox">
             <Setter Property="MinHeight" Value="36" />
             <Setter Property="Padding" Value="6,4" />
+        </Style>
+
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="18" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLight}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#17212B" />
         </Style>
     </Application.Resources>
 </Application>
