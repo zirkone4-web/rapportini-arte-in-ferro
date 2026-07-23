@@ -1,4 +1,14 @@
-1. Put this entire folder inside the rapportini-arte-in-ferro project folder.
-2. Run APPLICA_CORREZIONE_CODIFICA.cmd.
-3. Wait for ENCODING CORRECTION COMPLETED.
-4. Move this correction folder back out of the repository before committing.
+NUOVO GESTIONALE WINDOWS - FASE 1
+
+Questo pacchetto:
+- modifica solo il progetto Windows;
+- richiede il ramo Git 'nuovo-gestionale-windows';
+- crea la nuova finestra principale con menu laterale;
+- mantiene tutte le funzioni esistenti;
+- non modifica Android, iPhone o Supabase;
+- salva un backup sul Desktop.
+
+Esecuzione:
+1. Estrai lo ZIP in una cartella del Desktop.
+2. Avvia APPLICA_ARCHITETTURA_GESTIONALE_FASE_1.cmd.
+3. Al termine torna su GitHub Desktop.
