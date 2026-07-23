@@ -1,5 +1,4 @@
-CORREZIONE BUILD 0.6.0
-
-Sostituisce un file Android e il workflow GitHub.
-Copiare .github e apps nel repository locale mantenendo il branch
-agent/versione-0.6.0-corretto, quindi commit e push.
+1. Put this entire folder inside the rapportini-arte-in-ferro project folder.
+2. Run APPLICA_CORREZIONE_CODIFICA.cmd.
+3. Wait for ENCODING CORRECTION COMPLETED.
+4. Move this correction folder back out of the repository before committing.

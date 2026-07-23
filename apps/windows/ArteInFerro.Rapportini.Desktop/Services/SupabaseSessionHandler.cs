@@ -81,7 +81,7 @@ public sealed class SupabaseSessionHandler : DelegatingHandler
             var payload = await response.Content.ReadAsStringAsync(cancellationToken);
             if (!response.IsSuccessStatusCode)
                 throw new ApiException(
-                    "La sessione Ã¨ scaduta. Chiudi il programma e accedi nuovamente.");
+                    "La sessione è scaduta. Chiudi il programma e accedi nuovamente.");
 
             var token = JsonSerializer.Deserialize<RefreshResponse>(payload, _json)
                 ?? throw new ApiException("Rinnovo della sessione non valido.");

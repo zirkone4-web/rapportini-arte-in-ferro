@@ -25,14 +25,14 @@ class AppUpdateService {
           child: AlertDialog(
             title: const Text('Aggiornamento disponibile'),
             content: Text(
-              '${row['messaggio'] ?? 'Ãˆ disponibile una nuova versione.'}'
+              '${row['messaggio'] ?? 'È disponibile una nuova versione.'}'
               '\n\nVersione $latest',
             ),
             actions: [
               if (!mandatory)
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('PIÃ™ TARDI'),
+                  child: const Text('PIÙ TARDI'),
                 ),
               FilledButton(
                 onPressed: () => Navigator.pop(dialogContext, true),

@@ -48,10 +48,10 @@ public sealed class SupabaseAuthService
             token.User.Id,
             cancellationToken);
         if (!profile.Active)
-            throw new ApiException("Questo account Ã¨ stato disattivato.");
+            throw new ApiException("Questo account è stato disattivato.");
         if (!string.Equals(profile.Role, "admin", StringComparison.OrdinalIgnoreCase))
             throw new ApiException(
-                "Lâ€™accesso al programma Windows Ã¨ riservato agli amministratori.");
+                "L’accesso al programma Windows è riservato agli amministratori.");
 
         return new AppSession(
             token.AccessToken,
