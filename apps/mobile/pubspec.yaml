@@ -1,7 +1,7 @@
 name: arte_in_ferro_rapportini
 description: Piattaforma mobile aziendale Arte In Ferro Lascari.
 publish_to: none
-version: 0.4.2+6
+version: 0.6.1+7
 
 environment:
   sdk: ">=3.10.0 <4.0.0"

@@ -81,15 +81,11 @@ class OfflineRapportiniRepository implements RapportiniRepository {
 
   @override
   Future<SyncResult> sync(String dipendenteId) async {
-    if (!await _hasConnection()) {
-      return const SyncResult(synced: 0, failed: 0, offline: true);
-    }
-
     try {
       final clienti = await _remote.fetchClienti();
       await _database.replaceClienti(clienti);
     } on Object {
-      // La sincronizzazione dei rapportini può proseguire con la cache clienti.
+      // La sincronizzazione dei rapportini puÃ² proseguire con la cache clienti.
     }
 
     var synced = 0;
@@ -217,7 +213,7 @@ class OfflineRapportiniRepository implements RapportiniRepository {
         await _database.upsertRapportino(remote);
       }
     } on Object {
-      // Il push già completato non viene annullato se il refresh fallisce.
+      // Il push giÃ  completato non viene annullato se il refresh fallisce.
     }
   }
 
@@ -275,6 +271,6 @@ class OfflineRapportiniRepository implements RapportiniRepository {
 
   String _safeError(Object error) {
     final message = error.toString();
-    return message.length > 300 ? '${message.substring(0, 300)}…' : message;
+    return message.length > 300 ? '${message.substring(0, 300)}â€¦' : message;
   }
 }

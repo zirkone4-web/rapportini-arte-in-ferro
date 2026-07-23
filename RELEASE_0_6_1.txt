@@ -1,0 +1,14 @@
+ARTE IN FERRO LASCARI - RIPRISTINO STABILE 0.6.1
+
+Android: 0.6.1+7
+Windows: 0.6.1
+PWA iPhone: cache v7
+
+Correzioni:
+- configurazione Supabase resistente ai secret vuoti;
+- sincronizzazione Android inviata davvero al server;
+- rinnovo automatico del token nel gestionale Windows;
+- query RLS senza ricorsioni;
+- eliminazione delle riscritture identiche dei rapportini;
+- riduzione del polling PWA;
+- una sola compilazione GitHub attiva per ramo.

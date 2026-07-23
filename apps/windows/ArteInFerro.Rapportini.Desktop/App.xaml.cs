@@ -8,7 +8,8 @@ namespace ArteInFerro.Rapportini.Desktop;
 
 public partial class App : Application
 {
-    private HttpClient? _httpClient;
+    private HttpClient? _authHttpClient;
+    private HttpClient? _apiHttpClient;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -18,13 +19,24 @@ public partial class App : Application
         try
         {
             var settings = AppSettings.Load();
-            _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
-            var auth = new SupabaseAuthService(_httpClient, settings);
+            _authHttpClient = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(45)
+            };
+
+            var auth = new SupabaseAuthService(_authHttpClient, settings);
             var loginViewModel = new LoginViewModel(auth);
             var loginWindow = new LoginWindow(loginViewModel);
             loginViewModel.LoginSucceeded += session =>
             {
-                var api = new SupabaseApiService(_httpClient, settings, session);
+                _apiHttpClient?.Dispose();
+                _apiHttpClient = new HttpClient(
+                    new SupabaseSessionHandler(settings, session))
+                {
+                    Timeout = TimeSpan.FromSeconds(45)
+                };
+
+                var api = new SupabaseApiService(_apiHttpClient, settings, session);
                 var exports = new ExportService(api);
                 var dashboardViewModel = new DashboardViewModel(api, exports);
                 var dashboard = new DashboardWindow(dashboardViewModel, api);
@@ -32,6 +44,7 @@ public partial class App : Application
                 dashboard.Show();
                 loginWindow.Close();
             };
+
             MainWindow = loginWindow;
             loginWindow.Show();
         }
@@ -48,7 +61,8 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _httpClient?.Dispose();
+        _apiHttpClient?.Dispose();
+        _authHttpClient?.Dispose();
         base.OnExit(e);
     }
 }

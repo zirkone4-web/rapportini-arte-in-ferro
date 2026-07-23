@@ -10,6 +10,10 @@ on:
       - "supabase/**"
       - ".github/workflows/build-installers-corretto.yml"
 
+concurrency:
+  group: arte-in-ferro-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -38,6 +42,7 @@ jobs:
   android:
     name: APK Android
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: apps/mobile
@@ -88,15 +93,18 @@ jobs:
           name: rapportini-android-apk
           path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         with:
           name: arte-in-ferro-play-store-aab
           path: apps/mobile/build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
+          retention-days: 14
 
   windows:
     name: Software Windows
     runs-on: windows-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: apps/windows/ArteInFerro.Rapportini.Desktop
@@ -117,7 +125,7 @@ jobs:
             $settings.SupabasePublishableKey = $env:SUPABASE_PUBLISHABLE_KEY
             $settings | ConvertTo-Json | Set-Content appsettings.json
           }
-      - name: Ripristina e compila
+      - name: Ripristina dipendenze
         run: dotnet restore
       - name: Pubblica win-x64 autonomo
         run: >-
@@ -133,3 +141,4 @@ jobs:
           name: rapportini-windows-x64
           path: apps/windows/ArteInFerro.Rapportini.Desktop/Rapportini-Windows-x64.zip
           if-no-files-found: error
+          retention-days: 14

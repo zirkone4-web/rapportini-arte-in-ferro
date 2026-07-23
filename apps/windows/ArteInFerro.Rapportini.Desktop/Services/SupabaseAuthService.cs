@@ -32,25 +32,31 @@ public sealed class SupabaseAuthService
         using var response = await _http.SendAsync(request, cancellationToken);
         var payload = await response.Content.ReadAsStringAsync(cancellationToken);
         if (!response.IsSuccessStatusCode)
-        {
             throw new ApiException(ReadError(payload, "Email o password non valide."));
-        }
 
         var token = JsonSerializer.Deserialize<TokenResponse>(payload, _json)
             ?? throw new ApiException("Risposta di autenticazione non valida.");
-        if (string.IsNullOrWhiteSpace(token.AccessToken) || token.User is null)
+        if (string.IsNullOrWhiteSpace(token.AccessToken) ||
+            string.IsNullOrWhiteSpace(token.RefreshToken) ||
+            token.User is null)
         {
             throw new ApiException("Sessione Supabase incompleta.");
         }
 
-        var profile = await LoadProfileAsync(token.AccessToken, token.User.Id, cancellationToken);
+        var profile = await LoadProfileAsync(
+            token.AccessToken,
+            token.User.Id,
+            cancellationToken);
         if (!profile.Active)
-            throw new ApiException("Questo account è stato disattivato.");
+            throw new ApiException("Questo account Ã¨ stato disattivato.");
         if (!string.Equals(profile.Role, "admin", StringComparison.OrdinalIgnoreCase))
-            throw new ApiException("L’accesso al programma Windows è riservato agli amministratori.");
+            throw new ApiException(
+                "Lâ€™accesso al programma Windows Ã¨ riservato agli amministratori.");
 
         return new AppSession(
             token.AccessToken,
+            token.RefreshToken,
+            DateTimeOffset.UtcNow.AddSeconds(token.ExpiresIn > 0 ? token.ExpiresIn : 3600),
             token.User.Id,
             profile.FullName,
             profile.Email,
@@ -71,6 +77,7 @@ public sealed class SupabaseAuthService
         var payload = await response.Content.ReadAsStringAsync(cancellationToken);
         if (!response.IsSuccessStatusCode)
             throw new ApiException(ReadError(payload, "Impossibile leggere il profilo."));
+
         var profiles = JsonSerializer.Deserialize<List<UserProfile>>(payload, _json) ?? [];
         return profiles.SingleOrDefault()
             ?? throw new ApiException("Profilo applicativo non trovato.");
@@ -95,11 +102,13 @@ public sealed class SupabaseAuthService
             var root = document.RootElement;
             foreach (var name in new[] { "msg", "message", "error_description", "error" })
             {
-                if (root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String)
+                if (root.TryGetProperty(name, out var value) &&
+                    value.ValueKind == JsonValueKind.String)
                     return value.GetString() ?? fallback;
             }
         }
         catch (JsonException) { }
+
         return fallback;
     }
 
@@ -107,6 +116,12 @@ public sealed class SupabaseAuthService
     {
         [JsonPropertyName("access_token")]
         public string AccessToken { get; set; } = string.Empty;
+
+        [JsonPropertyName("refresh_token")]
+        public string RefreshToken { get; set; } = string.Empty;
+
+        [JsonPropertyName("expires_in")]
+        public int ExpiresIn { get; set; }
 
         [JsonPropertyName("user")]
         public TokenUser? User { get; set; }
