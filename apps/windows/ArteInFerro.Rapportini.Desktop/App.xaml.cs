@@ -38,7 +38,8 @@ public partial class App : Application
                 };
 
                 var api = new SupabaseApiService(_apiHttpClient, settings, session);
-                var exports = new ExportService(api);
+                var archiveReader = new SupabaseArchiveReader(_apiHttpClient, settings, session);
+                var exports = new ExportService(api, archiveReader);
                 var dashboardViewModel = new DashboardViewModel(api, exports);
                 var shell = new MainShellWindow(dashboardViewModel, api);
 

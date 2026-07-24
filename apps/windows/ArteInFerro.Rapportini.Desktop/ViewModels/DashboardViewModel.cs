@@ -215,6 +215,33 @@ public partial class DashboardViewModel : ObservableObject
         });
     }
 
+    [RelayCommand]
+    private async Task ExportFullArchiveExcelAsync()
+    {
+        var path = _filePicker.PickFullArchiveExcelPath();
+        if (path is null) return;
+
+        await RunBusyAsync(async () =>
+        {
+            StatusMessage = "Creazione archivio Excel in corsoâ€¦";
+            await _exports.ExportFullArchiveExcelAsync(path);
+            StatusMessage = $"Archivio Excel salvato in {path}";
+        });
+    }
+
+    [RelayCommand]
+    private async Task ExportFullArchivePdfAsync()
+    {
+        var path = _filePicker.PickFullArchivePdfPath();
+        if (path is null) return;
+
+        await RunBusyAsync(async () =>
+        {
+            StatusMessage = "Creazione archivio PDF in corsoâ€¦";
+            await _exports.ExportFullArchivePdfAsync(path);
+            StatusMessage = $"Archivio PDF salvato in {path}";
+        });
+    }
     public Task RefreshAfterEditAsync() => LoadAsync();
 
     private async Task RunBusyAsync(Func<Task> action)

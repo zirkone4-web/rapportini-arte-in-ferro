@@ -16,6 +16,14 @@ public sealed class WindowsFileSavePicker
         "Cartella di lavoro Excel (*.xlsx)|*.xlsx",
         $"Presenze_e_straordinari_{DateTime.Now:yyyyMMdd}.xlsx");
 
+    public string? PickFullArchiveExcelPath() => Pick(
+        "Cartella di lavoro Excel (*.xlsx)|*.xlsx",
+        $"Archivio_completo_Arte_In_Ferro_{DateTime.Now:yyyyMMdd}.xlsx");
+
+    public string? PickFullArchivePdfPath() => Pick(
+        "Documento PDF (*.pdf)|*.pdf",
+        $"Archivio_completo_Arte_In_Ferro_{DateTime.Now:yyyyMMdd}.pdf");
+
     private static string? Pick(string filter, string fileName)
     {
         var dialog = new SaveFileDialog

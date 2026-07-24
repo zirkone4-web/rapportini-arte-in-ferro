@@ -10,8 +10,13 @@ public sealed class ExportService
 {
     private const string IronBlue = "#12385B";
     private readonly SupabaseApiService _api;
+    private readonly SupabaseArchiveReader _archiveReader;
 
-    public ExportService(SupabaseApiService api) => _api = api;
+    public ExportService(SupabaseApiService api, SupabaseArchiveReader archiveReader)
+    {
+        _api = api;
+        _archiveReader = archiveReader;
+    }
 
     public Task ExportExcelAsync(
         string path,
@@ -125,6 +130,190 @@ public sealed class ExportService
         }, cancellationToken);
     }
 
+    public async Task ExportFullArchiveExcelAsync(
+        string path,
+        CancellationToken cancellationToken = default)
+    {
+        var sections = await _archiveReader.LoadAsync(cancellationToken);
+        await Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var workbook = new XLWorkbook();
+            var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            for (var sectionIndex = 0; sectionIndex < sections.Count; sectionIndex++)
+            {
+                var section = sections[sectionIndex];
+                var sheet = workbook.Worksheets.Add(
+                    UniqueWorksheetName(section.Name, usedNames));
+                sheet.Cell(1, 1).Value = section.Name;
+                sheet.Cell(1, 1).Style.Font.Bold = true;
+                sheet.Cell(1, 1).Style.Font.FontSize = 16;
+                sheet.Cell(2, 1).Value =
+                    $"{section.Rows.Count} record Â· estrazione {DateTime.Now:dd/MM/yyyy HH:mm}";
+
+                if (section.Columns.Count == 0)
+                {
+                    sheet.Cell(4, 1).Value = "Nessun dato disponibile.";
+                    continue;
+                }
+
+                for (var column = 0; column < section.Columns.Count; column++)
+                    sheet.Cell(4, column + 1).Value = section.Columns[column];
+
+                var rowIndex = 5;
+                foreach (var row in section.Rows)
+                {
+                    for (var column = 0; column < section.Columns.Count; column++)
+                    {
+                        row.TryGetValue(section.Columns[column], out var value);
+                        sheet.Cell(rowIndex, column + 1).Value = value ?? string.Empty;
+                    }
+                    rowIndex++;
+                }
+
+                var header = sheet.Range(4, 1, 4, section.Columns.Count);
+                header.Style.Fill.BackgroundColor = XLColor.FromHtml(IronBlue);
+                header.Style.Font.FontColor = XLColor.White;
+                header.Style.Font.Bold = true;
+                sheet.SheetView.FreezeRows(4);
+                sheet.Range(4, 1, Math.Max(4, rowIndex - 1), section.Columns.Count)
+                    .Style.Alignment.WrapText = true;
+
+                if (section.Rows.Count > 0)
+                {
+                    sheet.Range(4, 1, rowIndex - 1, section.Columns.Count)
+                        .CreateTable($"TabellaArchivio{sectionIndex + 1}");
+                }
+
+                foreach (var column in sheet.ColumnsUsed())
+                {
+                    column.AdjustToContents();
+                    column.Width = Math.Clamp(column.Width, 9, 42);
+                }
+            }
+
+            workbook.SaveAs(path);
+        }, cancellationToken);
+    }
+
+    public async Task ExportFullArchivePdfAsync(
+        string path,
+        CancellationToken cancellationToken = default)
+    {
+        var sections = await _archiveReader.LoadAsync(cancellationToken);
+        await Task.Run(
+            () => BuildFullArchivePdf(sections).GeneratePdf(path),
+            cancellationToken);
+    }
+
+    private static IDocument BuildFullArchivePdf(
+        IReadOnlyList<ArchiveSection> sections)
+    {
+        const int maximumRowsPerSection = 1000;
+
+        return Document.Create(document =>
+        {
+            foreach (var section in sections)
+            {
+                document.Page(page =>
+                {
+                    page.Size(PageSizes.A4.Landscape());
+                    page.Margin(24);
+                    page.DefaultTextStyle(style =>
+                        style.FontSize(8).FontColor(Colors.Grey.Darken3));
+
+                    page.Header().Column(header =>
+                    {
+                        header.Item().Text("ARTE IN FERRO")
+                            .FontSize(18).Bold().FontColor(IronBlue);
+                        header.Item().Text(section.Name)
+                            .FontSize(13).SemiBold();
+                        header.Item().Text(
+                            $"{section.Rows.Count} record Â· {DateTime.Now:dd/MM/yyyy HH:mm}");
+                    });
+
+                    page.Content().PaddingTop(10).Column(column =>
+                    {
+                        column.Spacing(3);
+                        if (section.Rows.Count == 0)
+                        {
+                            column.Item().Text("Nessun dato disponibile.");
+                            return;
+                        }
+
+                        var rows = section.Rows.Take(maximumRowsPerSection).ToList();
+                        for (var index = 0; index < rows.Count; index++)
+                        {
+                            var row = rows[index];
+                            column.Item().PaddingTop(5)
+                                .Text($"Record {index + 1}")
+                                .Bold().FontColor(IronBlue);
+
+                            foreach (var key in section.Columns)
+                            {
+                                if (!row.TryGetValue(key, out var value) ||
+                                    string.IsNullOrWhiteSpace(value))
+                                {
+                                    continue;
+                                }
+
+                                var printable = value.Length > 1000
+                                    ? value[..1000] + "â€¦"
+                                    : value;
+                                column.Item().Text(text =>
+                                {
+                                    text.Span($"{key}: ").SemiBold();
+                                    text.Span(printable);
+                                });
+                            }
+
+                            column.Item().PaddingTop(3)
+                                .BorderBottom(1)
+                                .BorderColor(Colors.Grey.Lighten2);
+                        }
+
+                        if (section.Rows.Count > maximumRowsPerSection)
+                        {
+                            column.Item().PaddingTop(8).Text(
+                                $"PDF limitato ai primi {maximumRowsPerSection} record. " +
+                                "Il file Excel contiene l'estrazione completa.")
+                                .Italic().FontColor(Colors.Grey.Darken1);
+                        }
+                    });
+
+                    page.Footer().AlignCenter().Text(text =>
+                    {
+                        text.Span("Archivio gestionale Â· Pagina ");
+                        text.CurrentPageNumber();
+                        text.Span(" / ");
+                        text.TotalPages();
+                    });
+                });
+            }
+        });
+    }
+
+    private static string UniqueWorksheetName(
+        string requested,
+        ISet<string> used)
+    {
+        var invalid = new[] { ':', '\\', '/', '?', '*', '[', ']' };
+        var cleaned = new string(
+            requested.Select(character =>
+                invalid.Contains(character) ? ' ' : character).ToArray()).Trim();
+        if (string.IsNullOrWhiteSpace(cleaned)) cleaned = "Archivio";
+        if (cleaned.Length > 31) cleaned = cleaned[..31];
+
+        var candidate = cleaned;
+        var suffix = 2;
+        while (!used.Add(candidate))
+        {
+            var ending = $" {suffix++}";
+            candidate = cleaned[..Math.Min(cleaned.Length, 31 - ending.Length)] + ending;
+        }
+        return candidate;
+    }
     private static IDocument BuildPdf(ReportRow report, ReportMedia media)
     {
         return Document.Create(document =>

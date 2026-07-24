@@ -232,6 +232,12 @@
                                             HorizontalContentAlignment="Left" />
                                     <Button Content="Dati azienda" Click="CompanySettingsClick"
                                             HorizontalContentAlignment="Left" />
+                                    <Button Content="Archivio completo Excel"
+                                            Command="{Binding ExportFullArchiveExcelCommand}"
+                                            HorizontalContentAlignment="Left" />
+                                    <Button Content="Archivio completo PDF"
+                                            Command="{Binding ExportFullArchivePdfCommand}"
+                                            HorizontalContentAlignment="Left" />
                                 </StackPanel>
                             </Border>
                         </Grid>
