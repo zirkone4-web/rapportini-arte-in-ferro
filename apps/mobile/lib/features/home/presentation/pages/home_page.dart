@@ -37,7 +37,18 @@ class _HomePageState extends State<HomePage> {
       if (!mounted) return;
       final push = PushNotificationService.instance;
       if (push != null) {
-        unawaited(push.activateForUser(user.id).catchError((_) {}));
+        unawaited(push.activateForUser(user.id).catchError((error) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                push.lastError ??
+                    'Notifiche non attive. Controlla la connessione e riprova.',
+              ),
+              duration: const Duration(seconds: 8),
+            ),
+          );
+        }));
         _notificationSubscription = push.foregroundMessages.listen(
           (message) {
             if (!mounted) return;
