@@ -60,12 +60,22 @@ class RapportiniCubit extends Cubit<RapportiniState> {
     if (state.isSyncing) return;
     emit(state.copyWith(isSyncing: true, clearMessage: true));
     try {
-      final result = await _repository.sync(_dipendenteId);
+      var result = await _repository.sync(_dipendenteId);
+      if (result.failed > 0) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        final retry = await _repository.sync(_dipendenteId);
+        result = SyncResult(
+          synced: result.synced + retry.synced,
+          failed: retry.failed,
+          offline: retry.offline,
+        );
+      }
       await load(refreshClienti: false);
       final message = result.offline
           ? 'Sei offline: i dati restano al sicuro sul dispositivo.'
           : result.failed > 0
-              ? '${result.synced} sincronizzati, ${result.failed} da riprovare.'
+              ? 'ATTENZIONE: ${result.failed} rapportini non sono ancora nel '
+                  'gestionale. Tocca Sincronizza e non cancellare i dati.'
               : result.synced > 0
                   ? '${result.synced} rapportini sincronizzati.'
                   : 'Dati aggiornati.';
