@@ -47,7 +47,7 @@ public partial class DashboardWindow : Window
     }
 
     private void EmployeeAccessClick(object sender, RoutedEventArgs e) =>
-        new EmployeeAccessWindow(new EmployeeAccessViewModel(_api)) { Owner = this }.ShowDialog();
+        new EmployeeAccessWindow(new EmployeeAccessViewModel(_api), _api) { Owner = this }.ShowDialog();
 
     private void AttendanceClick(object sender, RoutedEventArgs e) =>
         new AttendanceWindow(new AttendanceViewModel(_api)) { Owner = this }.ShowDialog();
