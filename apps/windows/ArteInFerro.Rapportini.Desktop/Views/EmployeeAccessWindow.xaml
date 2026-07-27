@@ -16,6 +16,12 @@
         <Border Grid.Column="2" Background="White" Padding="20" CornerRadius="12">
             <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
                 <TextBlock Text="Anagrafica e permessi" FontSize="22" FontWeight="Bold"/>
+                <Button Content="+ CREA NUOVO UTENTE CON EMAIL E PASSWORD"
+                        Click="CreateUserClick" Margin="0,12,0,4"
+                        Background="#DDF3E5" Foreground="{StaticResource IronBlue}"
+                        FontWeight="Bold"/>
+                <TextBlock Text="Crea direttamente l'account Supabase e la relativa anagrafica."
+                           Foreground="#64748B" TextWrapping="Wrap" Margin="0,0,0,8"/>
                 <TextBlock Text="Nome e cognome *" Margin="0,14,0,0"/><TextBox Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}"/>
                 <TextBlock Text="Email account (gestita da Supabase)"/><TextBox Text="{Binding SelectedEmployee.Email}" IsReadOnly="True"/>
                 <TextBlock Text="Telefono"/><TextBox Text="{Binding Phone, UpdateSourceTrigger=PropertyChanged}"/>
