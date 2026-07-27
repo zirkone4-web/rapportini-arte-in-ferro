@@ -18,6 +18,9 @@ public partial class App : Application
 
         try
         {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            new IntroWindow().ShowDialog();
+
             var settings = AppSettings.Load();
             _authHttpClient = new HttpClient
             {
@@ -44,11 +47,13 @@ public partial class App : Application
                 var shell = new MainShellWindow(dashboardViewModel, api);
 
                 MainWindow = shell;
+                ShutdownMode = ShutdownMode.OnMainWindowClose;
                 shell.Show();
                 loginWindow.Close();
             };
 
             MainWindow = loginWindow;
+            ShutdownMode = ShutdownMode.OnMainWindowClose;
             loginWindow.Show();
         }
         catch (Exception ex)
