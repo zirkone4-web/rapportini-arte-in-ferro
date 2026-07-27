@@ -12,6 +12,10 @@ public sealed class WindowsFileSavePicker
         "Documento PDF (*.pdf)|*.pdf",
         $"Rapportino_{reportId[..Math.Min(8, reportId.Length)]}.pdf");
 
+    public string? PickReportsPdfPath(DateTime? from, DateTime? to) => Pick(
+        "Documento PDF (*.pdf)|*.pdf",
+        $"Rapportini_{from:yyyyMMdd}_{to:yyyyMMdd}.pdf");
+
     public string? PickAttendanceExcelPath() => Pick(
         "Cartella di lavoro Excel (*.xlsx)|*.xlsx",
         $"Presenze_e_straordinari_{DateTime.Now:yyyyMMdd}.xlsx");

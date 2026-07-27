@@ -92,6 +92,49 @@ public sealed class ExportService
         await Task.Run(() => BuildPdf(report, media).GeneratePdf(path), cancellationToken);
     }
 
+    public async Task ExportReportsPdfAsync(
+        string path,
+        IReadOnlyList<ReportRow> reports,
+        CancellationToken cancellationToken = default)
+    {
+        var items = new List<(ReportRow Report, ReportMedia Media)>();
+        foreach (var report in reports)
+            items.Add((report, await _api.GetMediaAsync(report, cancellationToken)));
+
+        await Task.Run(() => Document.Create(document =>
+        {
+            foreach (var item in items)
+            {
+                document.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(34);
+                    page.DefaultTextStyle(style => style.FontSize(10).FontColor(Colors.Grey.Darken3));
+                    page.Header().Element(container => BuildHeader(container, item.Report));
+                    page.Content().PaddingTop(18).Column(column =>
+                    {
+                        column.Spacing(14);
+                        column.Item().Element(container => BuildSummary(container, item.Report));
+                        column.Item().Element(container => BuildDescription(container, item.Report));
+                        column.Item().Element(container => BuildGps(container, item.Report));
+                        if (item.Media.Photos.Count > 0)
+                            column.Item().Element(container => BuildPhotos(container, item.Media.Photos));
+                        column.Item().Element(container => BuildSignature(container, item.Media.Signature));
+                        if (!string.IsNullOrWhiteSpace(item.Report.AdminNote))
+                            column.Item().Element(container => BuildAdminNote(container, item.Report.AdminNote!));
+                    });
+                    page.Footer().AlignCenter().Text(text =>
+                    {
+                        text.Span("Arte in Ferro · Rapportini selezionati · Pagina ");
+                        text.CurrentPageNumber();
+                        text.Span(" / ");
+                        text.TotalPages();
+                    });
+                });
+            }
+        }).GeneratePdf(path), cancellationToken);
+    }
+
     public Task ExportAttendanceExcelAsync(
         string path,
         IReadOnlyList<AttendanceRow> rows,
