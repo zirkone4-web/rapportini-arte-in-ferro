@@ -30,6 +30,62 @@
             <Setter Property="Padding" Value="12,5" />
             <Setter Property="Margin" Value="3" />
         </Style>
+
+        <Style x:Key="ModernGrid" TargetType="DataGrid">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="GridLinesVisibility" Value="None"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="AlternatingRowBackground" Value="#F7FAFC"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="Transparent"/>
+            <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
+        </Style>
+
+        <Style x:Key="ModernRow" TargetType="DataGridRow">
+            <Setter Property="MinHeight" Value="54"/>
+            <Setter Property="BorderBrush" Value="#E5EBF0"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#EDF5FB"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#DCECF8"/>
+                    <Setter Property="Foreground" Value="#102F49"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ModernCell" TargetType="DataGridCell">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        </Style>
+
+        <Style x:Key="ModernHeader" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#EFF4F8"/>
+            <Setter Property="Foreground" Value="#415665"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="10,11"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="#D9E2E9"/>
+        </Style>
+
+        <Style x:Key="RowActionButton" TargetType="Button">
+            <Setter Property="Content" Value="AZIONI  ▾"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Background" Value="#E1EEF7"/>
+            <Setter Property="Foreground" Value="#12385B"/>
+            <Setter Property="BorderBrush" Value="#BFD4E4"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -296,40 +352,51 @@
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
                         <Button Content="Nuovo rapportino" Click="NewReportClick"
                                 Background="#CFE7FF" />
-                        <Button Content="Apri / modifica / approva" Command="{Binding EditCommand}"
-                                Background="#DDF3E5" />
                         <Button Content="Esporta Excel" Command="{Binding ExportExcelCommand}" />
-                        <Button Content="Genera PDF" Command="{Binding ExportPdfCommand}" />
+                        <Button Content="PDF rapportino selezionato" Command="{Binding ExportPdfCommand}" />
+                        <Button Content="PDF della lista visualizzata"
+                                Command="{Binding ExportVisibleReportsPdfCommand}" Background="#DDF3E5" />
                     </StackPanel>
 
                     <Border Grid.Row="2" Style="{StaticResource CardBorder}" Padding="4">
                         <DataGrid ItemsSource="{Binding Reports}"
+                                  Style="{StaticResource ModernGrid}"
+                                  RowStyle="{StaticResource ModernRow}"
+                                  CellStyle="{StaticResource ModernCell}"
+                                  ColumnHeaderStyle="{StaticResource ModernHeader}"
                                   SelectedItem="{Binding SelectedReport}"
                                   AutoGenerateColumns="False" IsReadOnly="True"
                                   SelectionMode="Single" SelectionUnit="FullRow"
                                   CanUserSortColumns="True" CanUserReorderColumns="True"
-                                  GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                                  RowHeight="38" MouseDoubleClick="ReportDoubleClick">
+                                  MouseDoubleClick="ReportDoubleClick">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Data"
-                                    Binding="{Binding StartAt.LocalDateTime, StringFormat=dd/MM/yyyy HH:mm}"
-                                    Width="145" />
+                                <DataGridTextColumn Header="Data e ora"
+                                    Binding="{Binding StartAt.LocalDateTime, StringFormat=ddd dd/MM · HH:mm}"
+                                    Width="155" />
                                 <DataGridTextColumn Header="Dipendente"
-                                    Binding="{Binding EmployeeName}" Width="175" />
+                                    Binding="{Binding EmployeeName}" Width="205" />
                                 <DataGridTextColumn Header="Cliente"
-                                    Binding="{Binding ClientName}" Width="200" />
-                                <DataGridTextColumn Header="Luogo"
-                                    Binding="{Binding Place}" Width="180" />
-                                <DataGridTextColumn Header="Intervento"
-                                    Binding="{Binding InterventionLabel}" Width="175" />
-                                <DataGridTextColumn Header="Ore"
-                                    Binding="{Binding TotalHours, StringFormat=N2}" Width="70" />
+                                    Binding="{Binding ClientName}" Width="*" />
                                 <DataGridTextColumn Header="Stato"
-                                    Binding="{Binding Status}" Width="95" />
-                                <DataGridTextColumn Header="Descrizione"
-                                    Binding="{Binding Description}" Width="*" />
-                                <DataGridTextColumn Header="Nota ufficio"
-                                    Binding="{Binding AdminNote}" Width="190" />
+                                    Binding="{Binding StatusLabel}" Width="120" />
+                                <DataGridTemplateColumn Header="Azioni" Width="112">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource RowActionButton}"
+                                                    ToolTip="Azioni rapportino" Click="RowMenuButtonClick">
+                                                <Button.ContextMenu>
+                                                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                                        <MenuItem Header="Apri e modifica" Click="OpenReportMenuClick"/>
+                                                        <MenuItem Header="Esporta questo rapportino in PDF" Click="ExportReportMenuClick"/>
+                                                        <Separator/>
+                                                        <MenuItem Header="Cancella rapportino" Foreground="#B42318"
+                                                                  Click="DeleteReportMenuClick"/>
+                                                    </ContextMenu>
+                                                </Button.ContextMenu>
+                                            </Button>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
@@ -374,24 +441,19 @@
                                 </StackPanel>
                                 <Button Content="›" Click="PlanningNextClick" FontSize="20"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8,0">
-                                <ComboBox x:Name="PlanningActionsCombo" Width="190"
-                                          SelectedIndex="0" VerticalAlignment="Center">
-                                    <ComboBoxItem Content="Apri / modifica" Tag="edit"/>
-                                    <ComboBoxItem Content="Annulla pianificazione" Tag="cancel"/>
-                                    <ComboBoxItem Content="Cancella definitivamente" Tag="delete"/>
-                                </ComboBox>
-                                <Button Content="ESEGUI" Click="PlanningActionClick"/>
-                            </StackPanel>
                             <Button Grid.Column="3" Content="OGGI" Click="PlanningTodayClick"/>
                         </Grid>
                     </Border>
                     <Border Grid.Row="2" Style="{StaticResource CardBorder}" Padding="4">
                         <DataGrid ItemsSource="{Binding PlannedReports}"
+                                  Style="{StaticResource ModernGrid}"
+                                  RowStyle="{StaticResource ModernRow}"
+                                  CellStyle="{StaticResource ModernCell}"
+                                  ColumnHeaderStyle="{StaticResource ModernHeader}"
                                   SelectedItem="{Binding SelectedReport}"
                                   AutoGenerateColumns="False" IsReadOnly="True"
                                   SelectionMode="Single" SelectionUnit="FullRow"
-                                  RowHeight="46" MouseDoubleClick="ReportDoubleClick">
+                                  MouseDoubleClick="ReportDoubleClick">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Giorno"
                                     Binding="{Binding StartAt.LocalDateTime, StringFormat=ddd dd/MM}" Width="105"/>
@@ -400,13 +462,30 @@
                                 <DataGridTextColumn Header="Responsabile"
                                     Binding="{Binding EmployeeName}" Width="175"/>
                                 <DataGridTextColumn Header="Cliente"
-                                    Binding="{Binding ClientName}" Width="190"/>
-                                <DataGridTextColumn Header="Cantiere"
-                                    Binding="{Binding Place}" Width="190"/>
+                                    Binding="{Binding ClientName}" Width="220"/>
                                 <DataGridTextColumn Header="Attività"
                                     Binding="{Binding Description}" Width="*"/>
                                 <DataGridTextColumn Header="Stato"
                                     Binding="{Binding StatusLabel}" Width="105"/>
+                                <DataGridTemplateColumn Header="Azioni" Width="112">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource RowActionButton}"
+                                                    ToolTip="Azioni pianificazione" Click="RowMenuButtonClick">
+                                                <Button.ContextMenu>
+                                                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                                        <MenuItem Header="Apri e modifica" Click="OpenReportMenuClick"/>
+                                                        <MenuItem Header="Esporta in PDF" Click="ExportReportMenuClick"/>
+                                                        <MenuItem Header="Annulla pianificazione" Click="CancelPlanningMenuClick"/>
+                                                        <Separator/>
+                                                        <MenuItem Header="Cancella definitivamente" Foreground="#B42318"
+                                                                  Click="DeleteReportMenuClick"/>
+                                                    </ContextMenu>
+                                                </Button.ContextMenu>
+                                            </Button>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
@@ -416,6 +495,29 @@
             <Border Grid.Row="2" Background="#E4EAF0" Padding="16,7">
                 <TextBlock Text="{Binding StatusMessage}" Foreground="#455867" />
             </Border>
+        </Grid>
+
+        <Grid x:Name="IntroOverlay" Grid.ColumnSpan="2" Panel.ZIndex="100"
+              Visibility="Collapsed"
+              Background="#020914" MouseLeftButtonDown="SkipIntroClick">
+            <Image x:Name="IntroBackground" Source="/Assets/wormhole_intro.png"
+                   Stretch="UniformToFill" RenderTransformOrigin="0.5,0.5">
+                <Image.RenderTransform>
+                    <ScaleTransform ScaleX="1.22" ScaleY="1.22"/>
+                </Image.RenderTransform>
+            </Image>
+            <Border x:Name="IntroLogo" Background="#F2FFFFFF" CornerRadius="18"
+                    Padding="26,18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Border.RenderTransform>
+                    <ScaleTransform ScaleX="0.55" ScaleY="0.55"/>
+                </Border.RenderTransform>
+                <Image Source="/Assets/logo_arte_in_ferro.png" Width="390" Height="150"
+                       Stretch="Uniform"/>
+            </Border>
+            <TextBlock Text="Clicca per saltare" Foreground="#CCFFFFFF"
+                       HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                       Margin="0,0,0,28" FontSize="12"/>
         </Grid>
     </Grid>
 </Window>

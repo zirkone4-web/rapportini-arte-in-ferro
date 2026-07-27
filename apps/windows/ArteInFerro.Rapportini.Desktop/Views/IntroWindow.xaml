@@ -21,8 +21,8 @@
             </Border.RenderTransform>
             <Image Source="/Assets/logo_arte_in_ferro.png" Stretch="Uniform"/>
         </Border>
-        <TextBlock Text="ARTE IN FERRO" Foreground="White" FontSize="18"
-                   FontWeight="SemiBold" CharacterSpacing="180"
+        <TextBlock Text="A R T E   I N   F E R R O" Foreground="White" FontSize="18"
+                   FontWeight="SemiBold"
                    HorizontalAlignment="Center" VerticalAlignment="Bottom"
                    Margin="0,0,0,70"/>
         <TextBlock Text="Clicca per saltare" Foreground="#DCEEFF" FontSize="13"
