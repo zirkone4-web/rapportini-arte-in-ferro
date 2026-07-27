@@ -12,6 +12,8 @@ public partial class DashboardViewModel : ObservableObject
     private readonly ExportService _exports;
     private readonly WindowsFileSavePicker _filePicker = new();
     private readonly List<ReportRow> _allReports = [];
+    private DateTime _planningAnchor = DateTime.Today;
+    private bool _planningDayView;
 
     [ObservableProperty]
     private bool _isBusy;
@@ -56,6 +58,7 @@ public partial class DashboardViewModel : ObservableObject
 
     public string AdminName => _api.Session.FullName;
     public ObservableCollection<ReportRow> Reports { get; } = [];
+    public ObservableCollection<ReportRow> PlannedReports { get; } = [];
     public ObservableCollection<AttendanceRow> Attendance { get; } = [];
     public ObservableCollection<DeadlineRow> Deadlines { get; } = [];
     public ObservableCollection<LookupItem> Employees { get; } = [];
@@ -91,6 +94,7 @@ public partial class DashboardViewModel : ObservableObject
 
             _allReports.Clear();
             _allReports.AddRange(reports);
+            RefreshPlanning();
             Attendance.Clear();
             foreach (var row in attendance) Attendance.Add(row);
             Deadlines.Clear();
@@ -243,6 +247,69 @@ public partial class DashboardViewModel : ObservableObject
         });
     }
     public Task RefreshAfterEditAsync() => LoadAsync();
+
+    public string PlanningPeriodLabel
+    {
+        get
+        {
+            if (_planningDayView) return _planningAnchor.ToString("dddd d MMMM yyyy");
+            var start = StartOfWeek(_planningAnchor);
+            return $"{start:dd MMM} – {start.AddDays(6):dd MMM yyyy}";
+        }
+    }
+
+    public string PlanningViewLabel => _planningDayView ? "Vista giorno" : "Vista settimana";
+
+    public void SetPlanningView(bool dayView)
+    {
+        _planningDayView = dayView;
+        OnPropertyChanged(nameof(PlanningViewLabel));
+        RefreshPlanning();
+    }
+
+    public void MovePlanningPeriod(int direction)
+    {
+        _planningAnchor = _planningAnchor.AddDays(direction * (_planningDayView ? 1 : 7));
+        RefreshPlanning();
+    }
+
+    public void PlanningToday()
+    {
+        _planningAnchor = DateTime.Today;
+        RefreshPlanning();
+    }
+
+    public async Task CancelPlanningAsync(ReportRow report)
+    {
+        await _api.CancelPlannedReportAsync(report);
+        await LoadAsync();
+    }
+
+    public async Task DeletePlanningAsync(ReportRow report)
+    {
+        await _api.DeletePlannedReportAsync(report);
+        await LoadAsync();
+    }
+
+    private void RefreshPlanning()
+    {
+        var from = _planningDayView ? _planningAnchor.Date : StartOfWeek(_planningAnchor);
+        var to = from.AddDays(_planningDayView ? 1 : 7);
+        PlannedReports.Clear();
+        foreach (var report in _allReports
+                     .Where(x => x.IsPlanned &&
+                                 x.StartAt.LocalDateTime >= from &&
+                                 x.StartAt.LocalDateTime < to)
+                     .OrderBy(x => x.StartAt))
+            PlannedReports.Add(report);
+        OnPropertyChanged(nameof(PlanningPeriodLabel));
+    }
+
+    private static DateTime StartOfWeek(DateTime value)
+    {
+        var offset = ((int)value.DayOfWeek + 6) % 7;
+        return value.Date.AddDays(-offset);
+    }
 
     private async Task RunBusyAsync(Func<Task> action)
     {
