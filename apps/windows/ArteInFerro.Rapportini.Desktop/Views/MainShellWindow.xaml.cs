@@ -40,6 +40,56 @@ public partial class MainShellWindow : Window
     private void PlanningClick(object sender, RoutedEventArgs e) =>
         ShowPanel(PlanningPanel, "Pianificazione lavori");
 
+    private void PlanningDayClick(object sender, RoutedEventArgs e) =>
+        _viewModel.SetPlanningView(true);
+
+    private void PlanningWeekClick(object sender, RoutedEventArgs e) =>
+        _viewModel.SetPlanningView(false);
+
+    private void PlanningPreviousClick(object sender, RoutedEventArgs e) =>
+        _viewModel.MovePlanningPeriod(-1);
+
+    private void PlanningNextClick(object sender, RoutedEventArgs e) =>
+        _viewModel.MovePlanningPeriod(1);
+
+    private void PlanningTodayClick(object sender, RoutedEventArgs e) =>
+        _viewModel.PlanningToday();
+
+    private void PlanningEditClick(object sender, RoutedEventArgs e)
+    {
+        var report = ContextReport(sender) ?? _viewModel.SelectedReport;
+        if (report is not null) OpenEditor(report);
+    }
+
+    private async void PlanningCancelClick(object sender, RoutedEventArgs e)
+    {
+        var report = ContextReport(sender) ?? _viewModel.SelectedReport;
+        if (report is null) return;
+        if (MessageBox.Show(
+                "Annullare questa pianificazione? Rimarrà nello storico.",
+                "Conferma annullamento",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question) == MessageBoxResult.Yes)
+            await _viewModel.CancelPlanningAsync(report);
+    }
+
+    private async void PlanningDeleteClick(object sender, RoutedEventArgs e)
+    {
+        var report = ContextReport(sender) ?? _viewModel.SelectedReport;
+        if (report is null) return;
+        if (MessageBox.Show(
+                "Cancellare definitivamente questa pianificazione?",
+                "Conferma cancellazione",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            await _viewModel.DeletePlanningAsync(report);
+    }
+
+    private static ReportRow? ContextReport(object sender) =>
+        sender is MenuItem { Parent: ContextMenu { PlacementTarget.DataContext: ReportRow report } }
+            ? report
+            : null;
+
     private async void NewReportClick(object sender, RoutedEventArgs e)
     {
         var window = new PlanningCreateWindow(_api, isPlanned: false) { Owner = this };
