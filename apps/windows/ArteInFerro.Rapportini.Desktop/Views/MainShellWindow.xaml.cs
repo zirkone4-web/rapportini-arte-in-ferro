@@ -55,40 +55,34 @@ public partial class MainShellWindow : Window
     private void PlanningTodayClick(object sender, RoutedEventArgs e) =>
         _viewModel.PlanningToday();
 
-    private void PlanningEditClick(object sender, RoutedEventArgs e)
+    private async void PlanningActionClick(object sender, RoutedEventArgs e)
     {
-        var report = ContextReport(sender) ?? _viewModel.SelectedReport;
-        if (report is not null) OpenEditor(report);
-    }
-
-    private async void PlanningCancelClick(object sender, RoutedEventArgs e)
-    {
-        var report = ContextReport(sender) ?? _viewModel.SelectedReport;
+        var report = _viewModel.SelectedReport;
         if (report is null) return;
-        if (MessageBox.Show(
+        var action = (PlanningActionsCombo.SelectedItem as ComboBoxItem)?.Tag as string;
+        if (action == "edit")
+        {
+            OpenEditor(report);
+            return;
+        }
+        if (action == "cancel" &&
+            MessageBox.Show(
                 "Annullare questa pianificazione? Rimarrà nello storico.",
                 "Conferma annullamento",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question) == MessageBoxResult.Yes)
+        {
             await _viewModel.CancelPlanningAsync(report);
-    }
-
-    private async void PlanningDeleteClick(object sender, RoutedEventArgs e)
-    {
-        var report = ContextReport(sender) ?? _viewModel.SelectedReport;
-        if (report is null) return;
-        if (MessageBox.Show(
+            return;
+        }
+        if (action == "delete" &&
+            MessageBox.Show(
                 "Cancellare definitivamente questa pianificazione?",
                 "Conferma cancellazione",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning) == MessageBoxResult.Yes)
             await _viewModel.DeletePlanningAsync(report);
     }
-
-    private static ReportRow? ContextReport(object sender) =>
-        sender is MenuItem { Parent: ContextMenu { PlacementTarget.DataContext: ReportRow report } }
-            ? report
-            : null;
 
     private async void NewReportClick(object sender, RoutedEventArgs e)
     {
