@@ -203,6 +203,34 @@ public partial class DashboardViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task ExportVisibleReportsPdfAsync()
+    {
+        if (Reports.Count == 0)
+        {
+            StatusMessage = "Non ci sono rapportini nella visualizzazione corrente.";
+            return;
+        }
+        var path = _filePicker.PickReportsPdfPath(DateFrom, DateTo);
+        if (path is null) return;
+        await RunBusyAsync(async () =>
+        {
+            StatusMessage = $"Creazione PDF di {Reports.Count} rapportini…";
+            await _exports.ExportReportsPdfAsync(path, Reports.ToList());
+            StatusMessage = $"PDF della lista salvato in {path}";
+        });
+    }
+
+    public async Task DeleteReportAsync(ReportRow report)
+    {
+        await RunBusyAsync(async () =>
+        {
+            await _api.DeletePlannedReportAsync(report);
+            StatusMessage = "Rapportino cancellato.";
+            await LoadAsyncAfterBusy();
+        });
+    }
+
+    [RelayCommand]
     private async Task ExportAttendanceAsync()
     {
         if (Attendance.Count == 0)
