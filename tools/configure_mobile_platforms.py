@@ -102,6 +102,25 @@ if (keystorePropertiesFile.exists()) {
 
     gradle.write_text(text, encoding="utf-8")
 
+    root_gradle = root / "android" / "build.gradle.kts"
+    root_text = root_gradle.read_text(encoding="utf-8")
+    jni_marker = "// Arte in Ferro: compatibilita plugin JNI"
+    jni_compatibility = f"""
+
+{jni_marker}
+subprojects {{
+    if (name == "jni") {{
+        pluginManager.apply("org.jetbrains.kotlin.android")
+    }}
+}}
+"""
+
+    if jni_marker not in root_text:
+        root_gradle.write_text(
+            root_text.rstrip() + jni_compatibility,
+            encoding="utf-8",
+        )
+
 
 def configure_ios(root: Path) -> None:
     info = root / "ios" / "Runner" / "Info.plist"
