@@ -358,6 +358,7 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Orientation="Horizontal">
                                 <Button Content="GIORNO" Click="PlanningDayClick"/>
@@ -373,7 +374,16 @@
                                 </StackPanel>
                                 <Button Content="›" Click="PlanningNextClick" FontSize="20"/>
                             </StackPanel>
-                            <Button Grid.Column="2" Content="OGGI" Click="PlanningTodayClick"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8,0">
+                                <ComboBox x:Name="PlanningActionsCombo" Width="190"
+                                          SelectedIndex="0" VerticalAlignment="Center">
+                                    <ComboBoxItem Content="Apri / modifica" Tag="edit"/>
+                                    <ComboBoxItem Content="Annulla pianificazione" Tag="cancel"/>
+                                    <ComboBoxItem Content="Cancella definitivamente" Tag="delete"/>
+                                </ComboBox>
+                                <Button Content="ESEGUI" Click="PlanningActionClick"/>
+                            </StackPanel>
+                            <Button Grid.Column="3" Content="OGGI" Click="PlanningTodayClick"/>
                         </Grid>
                     </Border>
                     <Border Grid.Row="2" Style="{StaticResource CardBorder}" Padding="4">
@@ -382,21 +392,6 @@
                                   AutoGenerateColumns="False" IsReadOnly="True"
                                   SelectionMode="Single" SelectionUnit="FullRow"
                                   RowHeight="46" MouseDoubleClick="ReportDoubleClick">
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow">
-                                    <Setter Property="ContextMenu">
-                                        <Setter.Value>
-                                            <ContextMenu>
-                                                <MenuItem Header="Apri / modifica" Click="PlanningEditClick"/>
-                                                <MenuItem Header="Annulla pianificazione" Click="PlanningCancelClick"/>
-                                                <Separator/>
-                                                <MenuItem Header="Cancella definitivamente" Click="PlanningDeleteClick"
-                                                          Foreground="#B42318"/>
-                                            </ContextMenu>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </DataGrid.RowStyle>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Giorno"
                                     Binding="{Binding StartAt.LocalDateTime, StringFormat=ddd dd/MM}" Width="105"/>
