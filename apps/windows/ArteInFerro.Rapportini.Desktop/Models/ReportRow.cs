@@ -64,6 +64,12 @@ public sealed class ReportRow
     [JsonPropertyName("nota_amministratore")]
     public string? AdminNote { get; set; }
 
+    [JsonPropertyName("pianificato")]
+    public bool IsPlanned { get; set; }
+
+    [JsonPropertyName("note_pianificazione")]
+    public string? PlanningNotes { get; set; }
+
     [JsonPropertyName("created_at")]
     public DateTimeOffset CreatedAt { get; set; }
 
@@ -84,6 +90,17 @@ public sealed class ReportRow
 
     [JsonIgnore]
     public string ClientName => Client?.CompanyName ?? "—";
+
+    [JsonIgnore]
+    public string StatusLabel => Status switch
+    {
+        "bozza" when IsPlanned => "Pianificato",
+        "inviato" => "Inviato",
+        "approvato" => "Approvato",
+        "respinto" when IsPlanned => "Annullato",
+        "respinto" => "Respinto",
+        _ => Status
+    };
 
     [JsonIgnore]
     public string InterventionLabel => InterventionType switch
