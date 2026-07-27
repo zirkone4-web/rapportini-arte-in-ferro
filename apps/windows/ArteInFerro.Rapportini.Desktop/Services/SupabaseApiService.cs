@@ -29,7 +29,8 @@ public sealed class SupabaseApiService
             "mezzo_id,targa_mezzo,km_mezzo," +
             "tipologia_intervento,data_ora_inizio,data_ora_fine,ore_totali,descrizione," +
             "firma_cliente_url,gps_latitudine,gps_longitudine,gps_precisione_metri," +
-            "gps_rilevato_at,stato,nota_amministratore,created_at,updated_at,versione," +
+            "gps_rilevato_at,stato,nota_amministratore,pianificato,note_pianificazione," +
+            "created_at,updated_at,versione," +
             "dipendente:utenti!rapportini_dipendente_id_fkey(nome_cognome)," +
             "cliente:clienti!rapportini_cliente_id_fkey(ragione_sociale)";
         var uri = RestUri("rapportini") +
@@ -37,6 +38,33 @@ public sealed class SupabaseApiService
         var payload = await SendAsync(HttpMethod.Get, uri, null, cancellationToken);
         return JsonSerializer.Deserialize<List<ReportRow>>(payload, _json) ?? [];
     }
+
+    public async Task CancelPlannedReportAsync(
+        ReportRow report,
+        CancellationToken cancellationToken = default)
+    {
+        var body = new Dictionary<string, object?>
+        {
+            ["stato"] = "respinto",
+            ["nota_amministratore"] = "Pianificazione annullata dall'ufficio",
+            ["motivo_modifica"] = "Pianificazione annullata dall'ufficio"
+        };
+        var uri = RestUri("rapportini") +
+                  $"?id=eq.{Uri.EscapeDataString(report.Id)}" +
+                  $"&versione=eq.{report.Version}&select=id";
+        var payload = await SendAsync(HttpMethod.Patch, uri, body, cancellationToken, true);
+        var rows = JsonSerializer.Deserialize<List<CreatedId>>(payload, _json) ?? [];
+        if (rows.Count == 0) throw new ConcurrencyException();
+    }
+
+    public Task DeletePlannedReportAsync(
+        ReportRow report,
+        CancellationToken cancellationToken = default) =>
+        SendAsync(
+            HttpMethod.Delete,
+            RestUri("rapportini") + $"?id=eq.{Uri.EscapeDataString(report.Id)}",
+            null,
+            cancellationToken);
 
     public async Task<IReadOnlyList<LookupItem>> GetEmployeesAsync(
         CancellationToken cancellationToken = default)
